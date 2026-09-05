@@ -353,8 +353,8 @@ watchlist:
     - name: "航太國防與低軌太空生態"
       icon: "🚀"
       stocks:
-        - symbol: "SPAX"
-          name: "SpaceX 概念 (SPAX)"
+        - symbol: "SPCX"
+          name: "SpaceX 概念 (SPCX)"
           market: "us"
         - symbol: "LMT"
           name: "洛克希德馬丁 (LMT)"
