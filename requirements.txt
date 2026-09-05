@@ -1,0 +1,15 @@
+# HTTP 與工具函式庫
+requests>=2.31.0
+pyyaml>=6.0.1
+python-dateutil>=2.9.0
+pytz>=2024.1
+python-dotenv>=1.0.0
+
+# 金融行情與新聞擷取
+yfinance>=0.2.36
+feedparser>=6.0.11
+trafilatura>=1.8.0
+
+# 資料庫與 AI 模型
+supabase>=2.3.0
+google-genai>=0.1.1

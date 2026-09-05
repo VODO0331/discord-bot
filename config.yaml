@@ -1,0 +1,107 @@
+# 核心觀察標的與指數監控清單
+watchlist:
+  # 美股核心指數: 費城半導體、那斯達克、標普500、道瓊工業
+  us_indices:
+    - symbol: "^SOX"
+      name: "費城半導體"
+    - symbol: "^IXIC"
+      name: "那斯達克"
+    - symbol: "^GSPC"
+      name: "標普 500"
+    - symbol: "^DJI"
+      name: "道瓊工業"
+
+  # 美股焦點科技與半導體股
+  us_stocks:
+    - symbol: "TSM"
+      name: "台積電 ADR"
+    - symbol: "NVDA"
+      name: "輝達 (NVIDIA)"
+    - symbol: "AAPL"
+      name: "蘋果 (Apple)"
+    - symbol: "MSFT"
+      name: "微軟 (Microsoft)"
+    - symbol: "GOOGL"
+      name: "Alphabet (Google)"
+    - symbol: "AMZN"
+      name: "亞馬遜 (Amazon)"
+    - symbol: "META"
+      name: "Meta"
+
+  # 台股代表權值標的
+  tw_stocks:
+    - symbol: "2330.TW"
+      name: "台積電"
+    - symbol: "2454.TW"
+      name: "聯發科"
+    - symbol: "2317.TW"
+      name: "鴻海"
+
+# 新聞與研報 RSS 來源清單
+rss_feeds:
+  - name: "科技新報 TechNews"
+    url: "https://technews.tw/feed/"
+    category: "technology"
+  - name: "數位時代 BusinessNext"
+    url: "https://www.bnext.com.tw/rss"
+    category: "technology"
+  - name: "中央社產經新聞"
+    url: "https://feeds.feedburner.com/cnaFirstNews"
+    category: "finance"
+  - name: "TechCrunch"
+    url: "https://techcrunch.com/feed/"
+    category: "technology"
+
+# 突發快訊雙階段過濾規則詞庫 (第一階段零 Token 規則過濾)
+alert_keywords:
+  # 實體追蹤目標 (需至少命中一個實體)
+  entities:
+    - "台積電"
+    - "TSMC"
+    - "輝達"
+    - "NVIDIA"
+    - "聯發科"
+    - "鴻海"
+    - "蘋果"
+    - "Apple"
+    - "微軟"
+    - "Microsoft"
+    - "谷歌"
+    - "Google"
+    - "超微"
+    - "AMD"
+    - "OpenAI"
+    - "聯準會"
+    - "Fed"
+    - "FOMC"
+    - "半導體"
+    - "晶圓"
+    - "晶片法案"
+
+  # 重大市場或產業事件動作詞 (需同時命中實體與重大動作詞)
+  actions:
+    - "併購"
+    - "收購"
+    - "制裁"
+    - "禁令"
+    - "降息"
+    - "升息"
+    - "暴跌"
+    - "暴漲"
+    - "重挫"
+    - "飆漲"
+    - "斷供"
+    - "破產"
+    - "違約"
+    - "熔斷"
+    - "反壟斷"
+    - "調查"
+    - "崩盤"
+    - "突發"
+
+# 摘要與評分參數
+pipeline:
+  # 突發快訊推送門檻評分 (1-5 分，>= 4 分才觸發推播)
+  alert_min_score: 4
+  # 新聞萃取最大重試次數
+  extractor_timeout_seconds: 8

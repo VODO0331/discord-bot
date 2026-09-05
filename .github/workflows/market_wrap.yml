@@ -1,0 +1,34 @@
+name: 台股盤後綜述 (Market Wrap)
+
+on:
+  schedule:
+    - cron: "30 9 * * 1-5"  # 週一至週五 UTC 09:30 (台灣時間 17:30)
+  workflow_dispatch:        # 支援手動觸發
+
+jobs:
+  market_wrap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 檢出儲存庫代碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Python 環境
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: 安裝專案依賴
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 執行盤後綜述生成與派發
+        env:
+          DISCORD_WEBHOOK_DAILY_URL: ${{ secrets.DISCORD_WEBHOOK_DAILY_URL }}
+          DISCORD_WEBHOOK_ALERT_URL: ${{ secrets.DISCORD_WEBHOOK_ALERT_URL }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          python main.py --mode wrap

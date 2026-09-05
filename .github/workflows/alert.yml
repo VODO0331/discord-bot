@@ -1,0 +1,34 @@
+name: 突發快訊掃描 (Breaking Alert)
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"  # 每 30 分鐘執行一次
+  workflow_dispatch:        # 支援手動觸發
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 檢出儲存庫代碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Python 環境
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: 安裝專案依賴
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 執行快訊掃描與派發
+        env:
+          DISCORD_WEBHOOK_ALERT_URL: ${{ secrets.DISCORD_WEBHOOK_ALERT_URL }}
+          DISCORD_WEBHOOK_DAILY_URL: ${{ secrets.DISCORD_WEBHOOK_DAILY_URL }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          python main.py --mode alert
