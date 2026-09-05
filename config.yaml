@@ -11,31 +11,104 @@ watchlist:
     - symbol: "^DJI"
       name: "道瓊工業"
 
-  # 美股焦點科技與半導體股
-  us_stocks:
-    - symbol: "TSM"
-      name: "台積電 ADR"
-    - symbol: "NVDA"
-      name: "輝達 (NVIDIA)"
-    - symbol: "AAPL"
-      name: "蘋果 (Apple)"
-    - symbol: "MSFT"
-      name: "微軟 (Microsoft)"
-    - symbol: "GOOGL"
-      name: "Alphabet (Google)"
-    - symbol: "AMZN"
-      name: "亞馬遜 (Amazon)"
-    - symbol: "META"
-      name: "Meta"
+  # 產業與關鍵供應鏈分類觀察名單 (支援依產業族群分流顯示)
+  industry_sectors:
+    - name: "晶圓代工與先進製程"
+      icon: "🏭"
+      stocks:
+        - symbol: "TSM"
+          name: "台積電 ADR"
+          market: "us"
+        - symbol: "2330.TW"
+          name: "台積電"
+          market: "tw"
+        - symbol: "2303.TW"
+          name: "聯電"
+          market: "tw"
 
-  # 台股代表權值標的
-  tw_stocks:
-    - symbol: "2330.TW"
-      name: "台積電"
-    - symbol: "2454.TW"
-      name: "聯發科"
-    - symbol: "2317.TW"
-      name: "鴻海"
+    - name: "AI 運算與 IC 設計"
+      icon: "🧠"
+      stocks:
+        - symbol: "NVDA"
+          name: "輝達 (NVIDIA)"
+          market: "us"
+        - symbol: "AMD"
+          name: "超微 (AMD)"
+          market: "us"
+        - symbol: "AVGO"
+          name: "博通 (Broadcom)"
+          market: "us"
+        - symbol: "2454.TW"
+          name: "聯發科"
+          market: "tw"
+
+    - name: "AI 伺服器與代工組裝"
+      icon: "🖥️"
+      stocks:
+        - symbol: "2317.TW"
+          name: "鴻海"
+          market: "tw"
+        - symbol: "2382.TW"
+          name: "廣達"
+          market: "tw"
+        - symbol: "3231.TW"
+          name: "緯創"
+          market: "tw"
+
+    - name: "IC 載板與 PCB"
+      icon: "📐"
+      stocks:
+        - symbol: "3037.TW"
+          name: "欣興"
+          market: "tw"
+        - symbol: "3189.TW"
+          name: "景碩"
+          market: "tw"
+        - symbol: "8046.TW"
+          name: "南電"
+          market: "tw"
+
+    - name: "被動元件"
+      icon: "🔋"
+      stocks:
+        - symbol: "2327.TW"
+          name: "國巨"
+          market: "tw"
+        - symbol: "2492.TW"
+          name: "華新科"
+          market: "tw"
+
+    - name: "散熱與機殼電源"
+      icon: "❄️"
+      stocks:
+        - symbol: "3017.TW"
+          name: "奇鋐"
+          market: "tw"
+        - symbol: "3324.TWO"
+          name: "雙鴻"
+          market: "tw"
+        - symbol: "2308.TW"
+          name: "台達電"
+          market: "tw"
+
+    - name: "美股雲端巨頭 (CSP)"
+      icon: "☁️"
+      stocks:
+        - symbol: "MSFT"
+          name: "微軟"
+          market: "us"
+        - symbol: "GOOGL"
+          name: "谷歌"
+          market: "us"
+        - symbol: "AMZN"
+          name: "亞馬遜"
+          market: "us"
+        - symbol: "AAPL"
+          name: "蘋果"
+          market: "us"
+        - symbol: "META"
+          name: "Meta"
+          market: "us"
 
 # 新聞與研報 RSS 來源清單
 rss_feeds:
@@ -54,7 +127,7 @@ rss_feeds:
 
 # 突發快訊雙階段過濾規則詞庫 (第一階段零 Token 規則過濾)
 alert_keywords:
-  # 實體追蹤目標 (需至少命中一個實體)
+  # 實體追蹤目標
   entities:
     - "台積電"
     - "TSMC"
@@ -62,6 +135,16 @@ alert_keywords:
     - "NVIDIA"
     - "聯發科"
     - "鴻海"
+    - "廣達"
+    - "緯創"
+    - "國巨"
+    - "欣興"
+    - "南電"
+    - "奇鋐"
+    - "雙鴻"
+    - "被動元件"
+    - "載板"
+    - "散熱"
     - "蘋果"
     - "Apple"
     - "微軟"
@@ -70,15 +153,17 @@ alert_keywords:
     - "Google"
     - "超微"
     - "AMD"
+    - "博通"
     - "OpenAI"
     - "聯準會"
     - "Fed"
     - "FOMC"
     - "半導體"
     - "晶圓"
-    - "晶片法案"
+    - "先進封裝"
+    - "CoWoS"
 
-  # 重大市場或產業事件動作詞 (需同時命中實體與重大動作詞)
+  # 重大市場或產業事件動作詞
   actions:
     - "併購"
     - "收購"
@@ -98,10 +183,11 @@ alert_keywords:
     - "調查"
     - "崩盤"
     - "突發"
+    - "擴產"
+    - "缺貨"
+    - "漲價"
 
 # 摘要與評分參數
 pipeline:
-  # 突發快訊推送門檻評分 (1-5 分，>= 4 分才觸發推播)
   alert_min_score: 4
-  # 新聞萃取最大重試次數
   extractor_timeout_seconds: 8

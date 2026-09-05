@@ -1,6 +1,6 @@
 """
 市場行情資料擷取模組 (src/data_sources/market.py)
-使用 yfinance 抓取美股四大指數、焦點科技股、TSM ADR 與台股代表權值標的行情。
+使用 yfinance 抓取美股四大指數、TSM ADR 以及依產業族群分類的焦點股票。
 """
 
 import logging
@@ -18,7 +18,6 @@ def fetch_ticker_quote(symbol: str, display_name: Optional[str] = None) -> Dict[
     name = display_name or symbol
     try:
         ticker = yf.Ticker(symbol)
-        # fast_info 通常比 info 快且不易被 rate limit 阻擋
         fast_info = getattr(ticker, "fast_info", None)
         
         current_price = None
@@ -27,7 +26,7 @@ def fetch_ticker_quote(symbol: str, display_name: Optional[str] = None) -> Dict[
         if fast_info:
             current_price = getattr(fast_info, "last_price", None)
             previous_close = getattr(fast_info, "previous_close", None)
-            
+        
         # 若 fast_info 未能取得，嘗試讀取最近 2 個交易日的歷史資料
         if current_price is None or previous_close is None:
             hist = ticker.history(period="5d")
@@ -37,6 +36,18 @@ def fetch_ticker_quote(symbol: str, display_name: Optional[str] = None) -> Dict[
             elif len(hist) == 1:
                 current_price = float(hist["Close"].iloc[-1])
                 previous_close = float(hist["Open"].iloc[-1])
+
+        # 若台股代號仍未取得，嘗試上市與上櫃互換 (.TW <-> .TWO)
+        if (current_price is None or previous_close is None) and (".TW" in symbol.upper()):
+            alt_symbol = symbol.replace(".TW", ".TWO") if ".TWO" not in symbol.upper() else symbol.replace(".TWO", ".TW")
+            try:
+                alt_ticker = yf.Ticker(alt_symbol)
+                alt_hist = alt_ticker.history(period="5d")
+                if len(alt_hist) >= 2:
+                    current_price = float(alt_hist["Close"].iloc[-1])
+                    previous_close = float(alt_hist["Close"].iloc[-2])
+            except Exception:
+                pass
 
         if current_price is not None and previous_close:
             change = current_price - previous_close
@@ -75,30 +86,55 @@ def fetch_ticker_quote(symbol: str, display_name: Optional[str] = None) -> Dict[
         }
 
 
+def get_sector_quotes(market_filter: Optional[str] = None) -> List[Dict[str, Any]]:
+    """
+    按產業分類批次取得個股行情。
+    market_filter 可指定 'tw' 或 'us' 來過濾特定市場。
+    """
+    sectors_summary = []
+
+    for sector in config.industry_sectors:
+        sector_name = sector.get("name", "一般族群")
+        icon = sector.get("icon", "📌")
+        matched_quotes = []
+
+        for stk in sector.get("stocks", []):
+            stk_market = stk.get("market", "").lower()
+            if market_filter and stk_market != market_filter:
+                continue
+
+            quote = fetch_ticker_quote(stk["symbol"], stk.get("name"))
+            matched_quotes.append(quote)
+
+        if matched_quotes:
+            sectors_summary.append({
+                "sector_name": sector_name,
+                "icon": icon,
+                "quotes": matched_quotes,
+            })
+
+    return sectors_summary
+
+
 def get_morning_market_data() -> Dict[str, Any]:
     """
     開盤晨報市場數據組合：
     - 美股四大核心指數 (^SOX, ^IXIC, ^GSPC, ^DJI)
     - 台積電 ADR (TSM) - 作為台股開盤重要領航
-    - 美股科技七巨頭 / 核心關注標的
+    - 美股科技焦點股 (按族群分組)
     """
     indices_results = []
     for item in config.us_indices:
         quote = fetch_ticker_quote(item["symbol"], item.get("name"))
         indices_results.append(quote)
 
-    stocks_results = []
-    tsm_quote = None
-    for item in config.us_stocks:
-        quote = fetch_ticker_quote(item["symbol"], item.get("name"))
-        stocks_results.append(quote)
-        if item["symbol"].upper() == "TSM":
-            tsm_quote = quote
+    tsm_quote = fetch_ticker_quote("TSM", "台積電 ADR")
+    us_sectors = get_sector_quotes(market_filter="us")
 
     return {
         "indices": indices_results,
-        "stocks": stocks_results,
         "tsm_adr": tsm_quote,
+        "sector_groups": us_sectors,
     }
 
 
@@ -106,25 +142,18 @@ def get_wrap_market_data() -> Dict[str, Any]:
     """
     盤後綜述市場數據組合：
     - 台灣加權指數 (^TWII)
-    - 台股代表權值標的 (2330.TW, 2454.TW, 2317.TW)
-    - 美股期貨或美股焦點個股盤前狀態
+    - 台股熱門個股 (按產業族群分組: 載板、被動元件、AI代工、散熱等)
+    - 美股代表指數作為晚間前瞻
     """
-    # 擷取台灣加權指數
     tw_index = fetch_ticker_quote("^TWII", "加權指數")
+    tw_sectors = get_sector_quotes(market_filter="tw")
 
-    # 擷取台股權值股
-    tw_stocks_results = []
-    for item in config.tw_stocks:
-        quote = fetch_ticker_quote(item["symbol"], item.get("name"))
-        tw_stocks_results.append(quote)
-
-    # 美股代表標的作為晚間前瞻參考
     us_preview = []
     for item in config.us_indices[:2]:
         us_preview.append(fetch_ticker_quote(item["symbol"], item.get("name")))
 
     return {
         "tw_index": tw_index,
-        "tw_stocks": tw_stocks_results,
+        "sector_groups": tw_sectors,
         "us_preview": us_preview,
     }

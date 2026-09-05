@@ -27,32 +27,31 @@ def get_gemini_client():
         return None
 
 
-def call_gemini(prompt: str, model_name: str = "gemini-2.5-flash") -> str:
-    """呼叫 Gemini API 產生回應"""
+def call_gemini(prompt: str, model_name: str = "gemini-2.0-flash") -> str:
+    """呼叫 Gemini API 產生回應，具備多模型自動降級相容機制"""
     client = get_gemini_client()
     if not client:
         return ""
 
-    try:
-        response = client.models.generate_content(
-            model=model_name,
-            contents=prompt,
-        )
-        return response.text or ""
-    except Exception as e:
-        # 若 2.5-flash 不支援，嘗試降級使用 1.5-flash
-        if "gemini-2.5-flash" in model_name:
-            try:
-                response = client.models.generate_content(
-                    model="gemini-1.5-flash",
-                    contents=prompt,
-                )
-                return response.text or ""
-            except Exception as e2:
-                logger.error(f"Gemini API 呼叫失敗 (fallback 也失敗): {e2}")
-        else:
-            logger.error(f"Gemini API 呼叫失敗: {e}")
-        return ""
+    candidate_models = [model_name, "gemini-2.0-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"]
+    seen = set()
+
+    for m in candidate_models:
+        if m in seen:
+            continue
+        seen.add(m)
+        try:
+            response = client.models.generate_content(
+                model=m,
+                contents=prompt,
+            )
+            if response and response.text:
+                return response.text.strip()
+        except Exception as e:
+            logger.debug(f"模型 {m} 調用異常: {e}，嘗試備用模型...")
+
+    logger.error("所有候選 Gemini 模型調用皆失敗")
+    return ""
 
 
 def clean_json_text(raw_text: str) -> str:

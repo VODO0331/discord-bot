@@ -1,6 +1,7 @@
 """
 Discord Embed 訊息排版模組 (src/pipeline/formatter.py)
 依照 spec.md 4.3 規範建構 Discord Webhook Embed JSON 結構。
+支援依產業族群 (Industry Sectors) 分類排版呈現各族群熱門股行情。
 """
 
 from datetime import datetime, timezone
@@ -58,7 +59,7 @@ def format_alert_embed(
         },
         "title": article.get("title", "重大財經快訊"),
         "url": article.get("link", ""),
-        "description": description,
+        "description": description[:4000],
         "color": color,
         "fields": [
             {
@@ -87,7 +88,7 @@ def format_morning_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[s
     """
     fields = []
 
-    # 指數欄位
+    # 1. 隔夜美股四大核心指數
     indices_lines = []
     total_change = 0.0
     for idx in market_data.get("indices", []):
@@ -103,31 +104,34 @@ def format_morning_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[s
             "inline": False,
         })
 
-    # TSM ADR 專區
+    # 2. TSM ADR 專區
     tsm = market_data.get("tsm_adr")
     if tsm and tsm.get("status") == "ok":
         t_sign = "+" if tsm.get("change_percent", 0) >= 0 else ""
         t_icon = "🚀" if tsm.get("is_up") else "📉"
         fields.append({
-            "name": f"{t_icon} 台積電 ADR (TSM) 前瞻",
+            "name": f"{t_icon} 台積電 ADR (TSM) 開盤前瞻",
             "value": f"最新價格: **\${tsm['price']}** | 漲跌: **{t_sign}{tsm['change_percent']}%** ({t_sign}{tsm['change']})",
             "inline": False,
         })
 
-    # 科技焦點股
-    stock_lines = []
-    for stk in market_data.get("stocks", [])[:6]:
-        if stk.get("symbol") != "TSM":
+    # 3. 美股依產業族群呈現焦點行情
+    sector_groups = market_data.get("sector_groups", [])
+    for group in sector_groups:
+        sector_name = group.get("sector_name", "")
+        icon = group.get("icon", "📌")
+        stk_items = []
+        for stk in group.get("quotes", []):
             s_sign = "+" if stk.get("change_percent", 0) >= 0 else ""
             s_icon = "▲" if stk.get("is_up") else "▼"
-            stock_lines.append(f"{s_icon} {stk['name']}: {stk['price']} ({s_sign}{stk['change_percent']}%)")
+            stk_items.append(f"{s_icon} {stk['name']}: {stk['price']} ({s_sign}{stk['change_percent']}%)")
 
-    if stock_lines:
-        fields.append({
-            "name": "💻 美股核心科技權值",
-            "value": "\n".join(stock_lines),
-            "inline": False,
-        })
+        if stk_items:
+            fields.append({
+                "name": f"{icon} {sector_name}",
+                "value": "\n".join(stk_items)[:1024],
+                "inline": True,
+            })
 
     embed_color = COLOR_BULLISH if total_change >= 0 else COLOR_BEARISH
 
@@ -152,9 +156,11 @@ def format_morning_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[s
 def format_wrap_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[str, Any]:
     """
     建構盤後綜述 (Market Wrap) Discord Embed。
+    將台股個股依照「產業族群 (Sectors)」清晰分組呈現。
     """
     fields = []
 
+    # 1. 加權指數總結
     tw_index = market_data.get("tw_index", {})
     sign = "+" if tw_index.get("change_percent", 0) >= 0 else ""
     icon = "🟢" if tw_index.get("is_up") else "🔴"
@@ -165,18 +171,23 @@ def format_wrap_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[str,
         "inline": False,
     })
 
-    stock_lines = []
-    for stk in market_data.get("tw_stocks", []):
-        s_sign = "+" if stk.get("change_percent", 0) >= 0 else ""
-        s_icon = "▲" if stk.get("is_up") else "▼"
-        stock_lines.append(f"{s_icon} **{stk['name']}**: {stk['price']} ({s_sign}{stk['change_percent']}%)")
+    # 2. 依照產業族群分類呈现 (如 IC 載板, 被動元件, 散熱, AI 代工)
+    sector_groups = market_data.get("sector_groups", [])
+    for group in sector_groups:
+        sector_name = group.get("sector_name", "")
+        icon = group.get("icon", "📌")
+        stk_items = []
+        for stk in group.get("quotes", []):
+            s_sign = "+" if stk.get("change_percent", 0) >= 0 else ""
+            s_icon = "▲" if stk.get("is_up") else "▼"
+            stk_items.append(f"{s_icon} **{stk['name']}**: {stk['price']} ({s_sign}{stk['change_percent']}%)")
 
-    if stock_lines:
-        fields.append({
-            "name": "🏢 焦點代表權值股",
-            "value": "\n".join(stock_lines),
-            "inline": False,
-        })
+        if stk_items:
+            fields.append({
+                "name": f"{icon} {sector_name}",
+                "value": "\n".join(stk_items)[:1024],
+                "inline": True,
+            })
 
     embed_color = COLOR_BULLISH if tw_index.get("is_up", True) else COLOR_BEARISH
 
@@ -185,8 +196,8 @@ def format_wrap_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[str,
             "name": "🌆 台股盤後綜述 (Market Wrap)",
             "icon_url": "https://cdn-icons-png.flaticon.com/512/3222/3222800.png",
         },
-        "title": f"【盤後復盤】今日收盤總結與美股夜盤前瞻 — {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
-        "description": ai_summary,
+        "title": f"【盤後復盤】今日收盤總結與產業族群動態 — {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
+        "description": ai_summary[:4000],
         "color": embed_color,
         "fields": fields,
         "footer": {
@@ -211,7 +222,7 @@ def format_weekly_embed(ai_summary: str, top_articles: List[Dict[str, Any]]) -> 
     if ref_lines:
         fields.append({
             "name": "📚 本週代表性焦點研報與新聞",
-            "value": "\n".join(ref_lines),
+            "value": "\n".join(ref_lines)[:1024],
             "inline": False,
         })
 
@@ -221,7 +232,7 @@ def format_weekly_embed(ai_summary: str, top_articles: List[Dict[str, Any]]) -> 
             "icon_url": "https://cdn-icons-png.flaticon.com/512/2910/2910795.png",
         },
         "title": f"【深度綜述】全球科技與半導體供應鏈週回顧 — {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
-        "description": ai_summary,
+        "description": ai_summary[:4000],
         "color": COLOR_NEUTRAL,
         "fields": fields,
         "footer": {

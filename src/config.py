@@ -1,6 +1,7 @@
 """
 專案全域配置模組 (src/config.py)
 負責讀取 config.yaml 與系統環境變數 (.env 或 GitHub Secrets)。
+支援按產業族群 (industry_sectors) 分類管理個股。
 """
 
 import os
@@ -26,11 +27,30 @@ class AppConfig:
     def __init__(self, raw_yaml: Dict[str, Any]):
         self.raw_yaml = raw_yaml
 
-        # 觀察清單
         watchlist = raw_yaml.get("watchlist", {})
         self.us_indices: List[Dict[str, str]] = watchlist.get("us_indices", [])
-        self.us_stocks: List[Dict[str, str]] = watchlist.get("us_stocks", [])
-        self.tw_stocks: List[Dict[str, str]] = watchlist.get("tw_stocks", [])
+        
+        # 產業分類觀察名單
+        self.industry_sectors: List[Dict[str, Any]] = watchlist.get("industry_sectors", [])
+
+        # 自動由產業名單聚合出美股與台股獨立清單 (維持向後相容)
+        self.us_stocks: List[Dict[str, str]] = []
+        self.tw_stocks: List[Dict[str, str]] = []
+
+        for sector in self.industry_sectors:
+            for stk in sector.get("stocks", []):
+                market = stk.get("market", "").lower()
+                stock_item = {
+                    "symbol": stk["symbol"],
+                    "name": stk["name"],
+                    "sector": sector.get("name", "一般族群"),
+                }
+                if market == "us":
+                    if not any(s["symbol"] == stk["symbol"] for s in self.us_stocks):
+                        self.us_stocks.append(stock_item)
+                elif market == "tw" or ".TW" in stk["symbol"].upper() or ".TWO" in stk["symbol"].upper():
+                    if not any(s["symbol"] == stk["symbol"] for s in self.tw_stocks):
+                        self.tw_stocks.append(stock_item)
 
         # RSS 來源
         self.rss_feeds: List[Dict[str, str]] = raw_yaml.get("rss_feeds", [])
