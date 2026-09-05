@@ -212,12 +212,21 @@ def format_wrap_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[str,
 def format_weekly_embed(ai_summary: str, top_articles: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     建構週末產業週報 (Weekly Deep-dive) Discord Embed。
+    嚴格校驗超連結，避免無效 URL 導致 Discord 回傳 HTTP 400。
     """
     fields = []
 
     ref_lines = []
-    for idx, art in enumerate(top_articles[:4], 1):
-        ref_lines.append(f"{idx}. [{art.get('title', '參考文章')}]({art.get('link', art.get('url', '#'))})")
+    for idx, art in enumerate(top_articles[:5], 1):
+        title = art.get("title", "").strip() or "焦點事件"
+        # 尋找合法 URL (必須為 http:// 或 https://)
+        link = art.get("link") or art.get("url") or ""
+        if isinstance(link, str) and (link.startswith("http://") or link.startswith("https://")):
+            ref_lines.append(f"{idx}. [{title}]({link})")
+        else:
+            source = art.get("source", "")
+            source_tag = f"【{source}】" if source else ""
+            ref_lines.append(f"{idx}. {source_tag}{title}")
 
     if ref_lines:
         fields.append({

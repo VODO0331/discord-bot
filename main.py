@@ -188,19 +188,18 @@ def handle_weekly_mode(dry_run: bool = False):
     # 1. 自 Supabase 撈取過去 7 天記錄
     recent_articles = get_recent_articles(days=7)
     
-    # 若為 dry-run 或資料庫無資料時提供模擬新聞清單進行測試
-    if not recent_articles:
-        logger.info("資料庫近 7 天無紀錄，使用即時 RSS 文章作為週報素材")
+    # 若資料庫無記錄或記錄少於 3 篇，補充即時 RSS 產業焦點新聞確保素材充分
+    if len(recent_articles) < 3:
+        logger.info(f"資料庫近 7 天紀錄不足 ({len(recent_articles)} 篇)，補充即時焦點 RSS 文章作為素材")
         rss_articles = fetch_all_rss_articles(max_per_feed=5)
-        recent_articles = [
-            {
-                "title": a["title"],
-                "source": a["source"],
-                "summary_markdown": a["summary"][:100],
-                "link": a["link"],
-            }
-            for a in rss_articles[:10]
-        ]
+        for a in rss_articles:
+            if not any(r.get("title") == a.get("title") for r in recent_articles):
+                recent_articles.append({
+                    "title": a["title"],
+                    "source": a["source"],
+                    "summary_markdown": a["summary"][:120],
+                    "link": a["link"],
+                })
 
     # 2. AI 跨事件宏觀歸納提煉
     ai_summary = summarize_weekly(recent_articles)
