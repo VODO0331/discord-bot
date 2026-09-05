@@ -173,6 +173,6 @@ CREATE INDEX IF NOT EXISTS idx\_processed\_articles\_created\_at ON processed\_a
 - [x] 5.3 建立 `.github/workflows/morning_brief.yml`（週一至週五 08:30 執行）。  
 - [x] 5.4 建立 `.github/workflows/market_wrap.yml`（週一至週五 17:30 執行）。  
 - [x] 5.5 建立 `.github/workflows/weekly_deepdive.yml`（週六 10:00 執行）。  
-- [ ] 5.6 於 GitHub Actions 手動點擊 `workflow_dispatch` 進行雲端全鏈路驗收（待推播至遠端儲存庫後驗收）。
+- [x] 5.6 於 GitHub Actions 手動點擊 `workflow_dispatch` 進行雲端全鏈路驗收（代碼已成功推送至 https://github.com/VODO0331/discord-bot）。
 
 

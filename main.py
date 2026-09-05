@@ -143,7 +143,10 @@ def handle_morning_mode(dry_run: bool = False):
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         print("=" * 80 + "\n")
     else:
-        dispatch_webhook(payload, mode="morning")
+        success = dispatch_webhook(payload, mode="morning")
+        if not success:
+            logger.error("開盤晨報派發失敗！請檢查 Webhook 設定。")
+            sys.exit(1)
 
     logger.info("開盤晨報處理完成")
 
@@ -170,7 +173,10 @@ def handle_wrap_mode(dry_run: bool = False):
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         print("=" * 80 + "\n")
     else:
-        dispatch_webhook(payload, mode="wrap")
+        success = dispatch_webhook(payload, mode="wrap")
+        if not success:
+            logger.error("盤後綜述派發失敗！請檢查 Webhook 設定。")
+            sys.exit(1)
 
     logger.info("盤後綜述處理完成")
 
@@ -207,7 +213,10 @@ def handle_weekly_mode(dry_run: bool = False):
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         print("=" * 80 + "\n")
     else:
-        dispatch_webhook(payload, mode="weekly")
+        success = dispatch_webhook(payload, mode="weekly")
+        if not success:
+            logger.error("週末產業週報派發失敗！請檢查 Webhook 設定。")
+            sys.exit(1)
         # 清理 30 天以前的過期記錄
         prune_old_records(days=30)
 

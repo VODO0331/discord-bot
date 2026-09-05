@@ -137,7 +137,7 @@ def format_morning_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[s
             "icon_url": "https://cdn-icons-png.flaticon.com/512/869/869869.png",
         },
         "title": f"【開盤前瞻】美股收盤與產業焦點 — {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
-        "description": ai_summary,
+        "description": ai_summary[:4000],
         "color": embed_color,
         "fields": fields,
         "footer": {
