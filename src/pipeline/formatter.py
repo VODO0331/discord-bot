@@ -5,7 +5,7 @@ Discord Embed 訊息排版模組 (src/pipeline/formatter.py)
 """
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 # 色碼常數定義
 COLOR_BULLISH = 0x2ECC71   # 偏多/上漲綠 (#2ECC71)
@@ -115,9 +115,77 @@ def format_morning_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[s
             "inline": False,
         })
 
-    # 3. 美股依產業族群呈現焦點行情
+def compute_sector_metrics(quotes: List[Dict[str, Any]]) -> Tuple[float, str]:
+    """
+    計算族群內所有個股的平均表現與多空強弱燈號。
+    回傳: (平均漲跌幅, 燈號字串)
+    - 🟢 (+X.XX%): 多數/平均上漲
+    - 🔴 (-X.XX%): 多數/平均下跌
+    - ⚪ (0.00%): 持平
+    """
+    valid_quotes = [q for q in quotes if q.get("status") == "ok"]
+    if not valid_quotes:
+        return 0.0, ""
+
+    total_pct = sum(q.get("change_percent", 0.0) for q in valid_quotes)
+    avg_pct = total_pct / len(valid_quotes)
+
+    if avg_pct > 0:
+        indicator = "🟢"
+    elif avg_pct < 0:
+        indicator = "🔴"
+    else:
+        indicator = "⚪"
+
+    sign = "+" if avg_pct >= 0 else ""
+    label = f"{indicator} ({sign}{avg_pct:.2f}%)"
+    return avg_pct, label
+
+
+def format_morning_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[str, Any]:
+    """
+    建構開盤晨報 (Morning Brief) Discord Embed。
+    """
+    fields = []
+
+    # 1. 隔夜美股四大核心指數
+    indices_lines = []
+    total_change = 0.0
+    for idx in market_data.get("indices", []):
+        sign = "+" if idx.get("change_percent", 0) >= 0 else ""
+        icon = "🟢" if idx.get("is_up") else "🔴"
+        indices_lines.append(f"{icon} **{idx['name']}**: {idx['price']} ({sign}{idx['change_percent']}%)")
+        total_change += idx.get("change_percent", 0)
+
+    if indices_lines:
+        fields.append({
+            "name": "📈 隔夜美股核心指數",
+            "value": "\n".join(indices_lines),
+            "inline": False,
+        })
+
+    # 2. TSM ADR 專區
+    tsm = market_data.get("tsm_adr")
+    if tsm and tsm.get("status") == "ok":
+        t_sign = "+" if tsm.get("change_percent", 0) >= 0 else ""
+        t_icon = "🚀" if tsm.get("is_up") else "📉"
+        fields.append({
+            "name": f"{t_icon} 台積電 ADR (TSM) 開盤前瞻",
+            "value": f"最新價格: **\${tsm['price']}** | 漲跌: **{t_sign}{tsm['change_percent']}%** ({t_sign}{tsm['change']})",
+            "inline": False,
+        })
+
+    # 3. 美股依產業族群呈現焦點行情 (依平均強弱排序並標示 🟢/🔴 燈號)
     sector_groups = market_data.get("sector_groups", [])
+    ranked_groups = []
     for group in sector_groups:
+        avg_pct, strength_label = compute_sector_metrics(group.get("quotes", []))
+        ranked_groups.append((avg_pct, strength_label, group))
+
+    # 依平均漲跌幅由強至弱排序
+    ranked_groups.sort(key=lambda x: x[0], reverse=True)
+
+    for avg_pct, strength_label, group in ranked_groups:
         sector_name = group.get("sector_name", "")
         icon = group.get("icon", "📌")
         stk_items = []
@@ -128,7 +196,7 @@ def format_morning_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[s
 
         if stk_items:
             fields.append({
-                "name": f"{icon} {sector_name}",
+                "name": f"{strength_label} {icon} {sector_name}",
                 "value": "\n".join(stk_items)[:1024],
                 "inline": True,
             })
@@ -171,9 +239,17 @@ def format_wrap_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[str,
         "inline": False,
     })
 
-    # 2. 依照產業族群分類呈现 (如 IC 載板, 被動元件, 散熱, AI 代工)
+    # 2. 依照產業族群分類呈现 (依平均強弱排序並標示 🟢/🔴 燈號)
     sector_groups = market_data.get("sector_groups", [])
+    ranked_groups = []
     for group in sector_groups:
+        avg_pct, strength_label = compute_sector_metrics(group.get("quotes", []))
+        ranked_groups.append((avg_pct, strength_label, group))
+
+    # 依平均漲跌幅由強至弱排序 (主流強勢族群排在最前面)
+    ranked_groups.sort(key=lambda x: x[0], reverse=True)
+
+    for avg_pct, strength_label, group in ranked_groups:
         sector_name = group.get("sector_name", "")
         icon = group.get("icon", "📌")
         stk_items = []
@@ -184,7 +260,7 @@ def format_wrap_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[str,
 
         if stk_items:
             fields.append({
-                "name": f"{icon} {sector_name}",
+                "name": f"{strength_label} {icon} {sector_name}",
                 "value": "\n".join(stk_items)[:1024],
                 "inline": True,
             })
