@@ -69,7 +69,7 @@ class AppConfig:
         # 環境變數與機密
         self.discord_webhook_daily_url: str = os.getenv("DISCORD_WEBHOOK_DAILY_URL", "").strip()
         self.discord_webhook_alert_url: str = os.getenv("DISCORD_WEBHOOK_ALERT_URL", "").strip()
-        self.llm_api_key: str = os.getenv("LLM_API_KEY", "").strip()
+        self.llm_api_key: str = (os.getenv("LLM_API_KEY", "").strip() or os.getenv("GEMINI_API_KEY", "").strip())
         self.llm_provider: str = os.getenv("LLM_PROVIDER", "gemini").strip()
         self.supabase_url: str = os.getenv("SUPABASE_URL", "").strip()
         self.supabase_key: str = os.getenv("SUPABASE_KEY", "").strip()

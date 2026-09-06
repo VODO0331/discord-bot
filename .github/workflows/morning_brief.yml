@@ -27,7 +27,8 @@ jobs:
         env:
           DISCORD_WEBHOOK_DAILY_URL: ${{ secrets.DISCORD_WEBHOOK_DAILY_URL }}
           DISCORD_WEBHOOK_ALERT_URL: ${{ secrets.DISCORD_WEBHOOK_ALERT_URL }}
-          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY || secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || secrets.LLM_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |

@@ -14,37 +14,42 @@ from src.config import config
 logger = logging.getLogger(__name__)
 
 
-def call_gemini(prompt: str) -> str:
+def call_gemini(prompt: str, json_mode: bool = False) -> str:
     """
     呼叫 Google Gemini API 產生回應。
     優先使用官方標準 REST API 直連，具備跨環境 100% 穩定度與多模型自動降級機制。
+    支援 json_mode 強制輸出純 JSON。
     """
     api_key = config.llm_api_key
     if not api_key:
-        logger.warning("未偵測到 LLM_API_KEY，將啟用智慧規則動態提煉")
+        logger.warning("未偵測到 LLM_API_KEY / GEMINI_API_KEY，將啟用智慧規則動態提煉")
         return ""
 
     # Google AI Studio 支援模型清單 (由推薦至備援)
     candidate_models = [
-        "gemini-1.5-flash",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash-latest",
-        "gemini-1.5-pro",
+        "gemini-flash-latest",
+        "gemma-4-26b-a4b-it",
+        "gemini-pro-latest",
+        "gemini-2.5-flash",
     ]
 
     for model in candidate_models:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
         headers = {"Content-Type": "application/json"}
+        generation_config: Dict[str, Any] = {
+            "temperature": 0.2,
+            "topP": 0.8,
+        }
+        if json_mode:
+            generation_config["responseMimeType"] = "application/json"
+
         payload = {
             "contents": [
                 {
                     "parts": [{"text": prompt}]
                 }
             ],
-            "generationConfig": {
-                "temperature": 0.2,
-                "topP": 0.8,
-            }
+            "generationConfig": generation_config
         }
 
         try:
@@ -55,7 +60,7 @@ def call_gemini(prompt: str) -> str:
                 if candidates:
                     parts = candidates[0].get("content", {}).get("parts", [])
                     if parts and "text" in parts[0]:
-                        logger.info(f"✅ Gemini 摘要生成成功 (模型: {model})")
+                        logger.info(f"✅ Gemini 生成成功 (模型: {model}, 回應長度: {len(parts[0]['text'])})")
                         return parts[0]["text"].strip()
             else:
                 logger.warning(
@@ -69,7 +74,7 @@ def call_gemini(prompt: str) -> str:
 
 
 def clean_json_text(raw_text: str) -> str:
-    """去除 Markdown ```json 區塊外框以解析純 JSON"""
+    """去除 Markdown ```json 區塊外框，並嘗試擷取最外層 JSON 物件"""
     text = raw_text.strip()
     if text.startswith("```"):
         lines = text.splitlines()
@@ -78,30 +83,66 @@ def clean_json_text(raw_text: str) -> str:
         if lines and lines[-1].startswith("```"):
             lines = lines[:-1]
         text = "\n".join(lines).strip()
+    
+    # 擷取最外層 {} 區塊以防外圍雜訊
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if match:
+        return match.group(0)
     return text
 
 
 def extract_fallback_details(title: str, content: str) -> Dict[str, Any]:
     """
     當 AI 服務暫時無法連線時，根據新聞內文動態萃取真實細節，
-    絕不輸出固定重複的死板文本。
+    結合實體與產業關鍵字組裝衝擊評估，絕不輸出固定重複的死板文本。
     """
     clean_text = re.sub(r"\s+", " ", content).strip()
-    sentences = re.split(r"[。！？\n]", clean_text)
-    meaningful_sentences = [s.strip() for s in sentences if len(s.strip()) > 15]
+    sentences = [s.strip() for s in re.split(r"[。！？\n]", clean_text) if len(s.strip()) > 15]
 
     details = []
-    if meaningful_sentences:
-        details = meaningful_sentences[:2]
+    if len(sentences) >= 2:
+        details = [sentences[0][:80], sentences[1][:80]]
+    elif len(sentences) == 1:
+        details = [sentences[0][:80], f"追蹤標的後續走勢與即時盤面反饋：{title[:40]}"]
     else:
-        details = [f"關注標題核心要點：{title[:45]}"]
+        details = [f"重大即時動態焦點：{title[:50]}", "請持續追蹤官方重大訊息公告與盤中委託變化"]
+
+    # 動態識別涉及的產業或關鍵字以產出不同的產業影響
+    identified_sectors = []
+    text_corpus = f"{title} {content}"
+    sector_keywords = {
+        "半導體與先進封裝": ["台積電", "先進封裝", "CoWoS", "晶圓", "製程", "封測", "日月光", "ASML", "設備"],
+        "AI 運算與伺服器": ["AI", "人工智慧", "輝達", "NVIDIA", "伺服器", "廣達", "緯創", "鴻海", "緯穎", "雲端"],
+        "記憶體與儲存架構": ["記憶體", "DRAM", "NAND", "Flash", "美光", "南亞科", "華邦電", "威剛", "十銓"],
+        "光通訊與 CPO": ["光通訊", "CPO", "矽光子", "聯鈞", "波若威", "光聖", "上詮"],
+        "電力基建與重電": ["重電", "綠能", "電網", "電力", "華城", "士電", "中興電", "亞力"],
+        "被動元件與載板": ["被動元件", "國巨", "華新科", "禾伸堂", "載板", "欣興", "景碩", "南電", "CCL", "台光電"],
+        "電動車與車用電子": ["電動車", "特斯拉", "Tesla", "車用", "自駕"],
+    }
+    for sec, kws in sector_keywords.items():
+        if any(kw.lower() in text_corpus.lower() for kw in kws):
+            identified_sectors.append(sec)
+
+    if identified_sectors:
+        impact_sector_desc = "、".join(identified_sectors[:2])
+        impact_text = f"此事件直接牽動【{impact_sector_desc}】族群情緒與估值修正，建議密切關注上下游拉貨節奏及指標股盤中量價表現。"
+    else:
+        # 由標題動態產生
+        impact_text = f"市場正評估「{title[:25]}」對關聯供應鏈訂單能見度之影響，後續需留意法人籌碼意向與法說指引。"
+
+    # 簡單情感判斷
+    sentiment = "neutral"
+    if any(w in text_corpus for w in ["大漲", "暴增", "創高", "突破", "利多", "擴產", "優於預期", "飆"]):
+        sentiment = "bullish"
+    elif any(w in text_corpus for w in ["大跌", "重挫", "下修", "衰退", "砍單", "利空", "虧損", "跌破"]):
+        sentiment = "bearish"
 
     return {
         "significance_score": 4,
         "core_event": f"重大即時動態：{title[:50]}",
         "key_details": details,
-        "industry_impact": "事件涉及關鍵產業實體與市場脈動，短期內可能牽動台美相關供應鏈情緒與族群評價，需持續觀察後續法說與官方說明。",
-        "sentiment": "neutral",
+        "industry_impact": impact_text,
+        "sentiment": sentiment,
     }
 
 
@@ -120,24 +161,28 @@ def summarize_alert(article_title: str, article_content: str) -> Dict[str, Any]:
 
 請嚴格以繁體中文與 JSON 格式回傳，欄位規範如下：
 {{
-  "significance_score": 1到5的整數 (5代表極高衝擊如重大制裁/全球併購/破產，4代表重要事件如聯準會重大決策/台積電重大法說/蘋果發布全新晶片，3代表一般營收或常態產品更新，1-2代表噪音公關稿),
+  "significance_score": 1到5的整數 (5代表極高衝擊如重大制裁/全球併購/破產，4代表重要事件如聯準會重大決策/台積電重大法說/全新晶片，3代表一般營收或常態產品更新，1-2代表噪音公關稿),
   "core_event": "一句話總結事件核心 (不超過 50 字)",
   "key_details": ["關鍵細節與數據 1", "關鍵細節與數據 2", "關鍵細節 3 (可選)"],
-  "industry_impact": "對半導體、AI、供應鏈或相關受惠/受害族群的實質影響評估 (約 60-100 字)",
+  "industry_impact": "對半導體、AI、供應鏈或相關受惠/受害族群的實質影響評估 (約 60-100 字，必須針對本篇新聞內容撰寫，不可使用空泛模板)",
   "sentiment": "bullish (偏多) / bearish (偏空) / neutral (中性客觀)"
 }}
 只回傳合法的 JSON 物件，不要有任何多餘的前後文字。
 """
-    raw_response = call_gemini(prompt)
+    raw_response = call_gemini(prompt, json_mode=True)
     if raw_response:
         try:
             cleaned = clean_json_text(raw_response)
             data = json.loads(cleaned)
-            return data
+            # 驗證必要欄位存在
+            if "core_event" in data and "industry_impact" in data:
+                return data
+            else:
+                logger.warning(f"Gemini 回傳 JSON 缺少必要欄位: {data}")
         except Exception as e:
             logger.warning(f"解析 Gemini 快訊 JSON 回應失敗: {e}，原文: {raw_response[:100]}")
 
-    # 若 API 未回傳，使用文章真實內文進行動態降級萃取
+    # 若 API 未回傳或解析失敗，使用文章真實內文進行動態降級萃取
     return extract_fallback_details(article_title, article_content)
 
 
