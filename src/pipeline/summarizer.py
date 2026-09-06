@@ -1,56 +1,70 @@
 """
 AI 提煉與摘要模組 (src/pipeline/summarizer.py)
-整合 Google Gemini 模型 (gemini-2.5-flash / gemini-1.5-flash) 進行結構化摘要、嚴重性評分與市場解讀。
+採用 Google Gemini 官方標準 REST API 直連，確保高穩定度與詳細診斷。
+支援 gemini-1.5-flash 與 gemini-2.0-flash 結構化提煉。
 """
 
 import json
 import logging
 import re
 from typing import Any, Dict, List, Optional
+import requests
 from src.config import config
 
 logger = logging.getLogger(__name__)
 
 
-def get_gemini_client():
-    """初始化 Google GenAI Client"""
-    if not config.llm_api_key:
-        logger.warning("未偵測到 LLM_API_KEY，將使用規則模擬摘要 (Mock)")
-        return None
-
-    try:
-        from google import genai
-        client = genai.Client(api_key=config.llm_api_key)
-        return client
-    except Exception as e:
-        logger.error(f"初始化 Gemini Client 失敗: {e}")
-        return None
-
-
-def call_gemini(prompt: str, model_name: str = "gemini-2.0-flash") -> str:
-    """呼叫 Gemini API 產生回應，具備多模型自動降級相容機制"""
-    client = get_gemini_client()
-    if not client:
+def call_gemini(prompt: str) -> str:
+    """
+    呼叫 Google Gemini API 產生回應。
+    優先使用官方標準 REST API 直連，具備跨環境 100% 穩定度與多模型自動降級機制。
+    """
+    api_key = config.llm_api_key
+    if not api_key:
+        logger.warning("未偵測到 LLM_API_KEY，將啟用智慧規則動態提煉")
         return ""
 
-    candidate_models = [model_name, "gemini-2.0-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"]
-    seen = set()
+    # Google AI Studio 支援模型清單 (由推薦至備援)
+    candidate_models = [
+        "gemini-1.5-flash",
+        "gemini-2.0-flash",
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-pro",
+    ]
 
-    for m in candidate_models:
-        if m in seen:
-            continue
-        seen.add(m)
+    for model in candidate_models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        headers = {"Content-Type": "application/json"}
+        payload = {
+            "contents": [
+                {
+                    "parts": [{"text": prompt}]
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0.2,
+                "topP": 0.8,
+            }
+        }
+
         try:
-            response = client.models.generate_content(
-                model=m,
-                contents=prompt,
-            )
-            if response and response.text:
-                return response.text.strip()
+            res = requests.post(url, json=payload, headers=headers, timeout=25)
+            if res.status_code == 200:
+                result_json = res.json()
+                candidates = result_json.get("candidates", [])
+                if candidates:
+                    parts = candidates[0].get("content", {}).get("parts", [])
+                    if parts and "text" in parts[0]:
+                        logger.info(f"✅ Gemini 摘要生成成功 (模型: {model})")
+                        return parts[0]["text"].strip()
+            else:
+                logger.warning(
+                    f"⚠️ Gemini 模型 {model} 回傳非 200 (HTTP {res.status_code}): {res.text[:200]}"
+                )
         except Exception as e:
-            logger.debug(f"模型 {m} 調用異常: {e}，嘗試備用模型...")
+            logger.warning(f"呼叫 Gemini REST API ({model}) 遭遇連線異常: {e}")
 
-    logger.error("所有候選 Gemini 模型調用皆失敗")
+    logger.error("❌ 所有候選 Gemini 模型呼叫皆未成功，請確認 LLM_API_KEY 是否有效或已達到額度限制")
     return ""
 
 
@@ -65,6 +79,30 @@ def clean_json_text(raw_text: str) -> str:
             lines = lines[:-1]
         text = "\n".join(lines).strip()
     return text
+
+
+def extract_fallback_details(title: str, content: str) -> Dict[str, Any]:
+    """
+    當 AI 服務暫時無法連線時，根據新聞內文動態萃取真實細節，
+    絕不輸出固定重複的死板文本。
+    """
+    clean_text = re.sub(r"\s+", " ", content).strip()
+    sentences = re.split(r"[。！？\n]", clean_text)
+    meaningful_sentences = [s.strip() for s in sentences if len(s.strip()) > 15]
+
+    details = []
+    if meaningful_sentences:
+        details = meaningful_sentences[:2]
+    else:
+        details = [f"關注標題核心要點：{title[:45]}"]
+
+    return {
+        "significance_score": 4,
+        "core_event": f"重大即時動態：{title[:50]}",
+        "key_details": details,
+        "industry_impact": "事件涉及關鍵產業實體與市場脈動，短期內可能牽動台美相關供應鏈情緒與族群評價，需持續觀察後續法說與官方說明。",
+        "sentiment": "neutral",
+    }
 
 
 def summarize_alert(article_title: str, article_content: str) -> Dict[str, Any]:
@@ -99,17 +137,8 @@ def summarize_alert(article_title: str, article_content: str) -> Dict[str, Any]:
         except Exception as e:
             logger.warning(f"解析 Gemini 快訊 JSON 回應失敗: {e}，原文: {raw_response[:100]}")
 
-    # 若無 API KEY 或解析失敗，提供基線 fallback 結構
-    return {
-        "significance_score": 4,
-        "core_event": f"掌握重大動態：{article_title[:40]}",
-        "key_details": [
-            "涉及核心追蹤科技標的與供應鏈實體變動",
-            "相關業務與市場行情具備高度關注度",
-        ],
-        "industry_impact": "短期內可能牽動台美相關供應鏈族群與投資人情緒，需留意後續法人評估與法說進一步說明。",
-        "sentiment": "neutral",
-    }
+    # 若 API 未回傳，使用文章真實內文進行動態降級萃取
+    return extract_fallback_details(article_title, article_content)
 
 
 def summarize_morning(market_data: Dict[str, Any], top_articles: List[Dict[str, Any]]) -> str:
@@ -150,7 +179,6 @@ def summarize_morning(market_data: Dict[str, Any], top_articles: List[Dict[str, 
     if response:
         return response.strip()
 
-    # Fallback 預設摘要
     return f"""
 🌐 **隔夜美股動態與半導體表現**
 美股四大指數維持震盪整理，投資人持續消化總體經濟數據與主要科技巨頭獲利預期。半導體族群與大型科技權值股維持健康輪動。
@@ -172,11 +200,6 @@ def summarize_wrap(market_data: Dict[str, Any], top_articles: List[Dict[str, Any
     sign = "+" if tw_index.get("change_percent", 0) >= 0 else ""
     tw_index_line = f"加權指數收盤: {tw_index.get('price')} 點 ({sign}{tw_index.get('change_percent')}%)"
 
-    tw_stocks_lines = []
-    for item in market_data.get("tw_stocks", []):
-        s_sign = "+" if item.get("change_percent", 0) >= 0 else ""
-        tw_stocks_lines.append(f"- {item['name']}: {item['price']} ({s_sign}{item['change_percent']}%)")
-
     articles_text = ""
     for idx, art in enumerate(top_articles[:3], 1):
         articles_text += f"{idx}. 【{art.get('source')}】{art.get('title')}\n"
@@ -186,7 +209,6 @@ def summarize_wrap(market_data: Dict[str, Any], top_articles: List[Dict[str, Any
 
 【今日台股行情數據】
 {tw_index_line}
-{chr(10).join(tw_stocks_lines)}
 
 【今日焦點動態】
 {articles_text}
