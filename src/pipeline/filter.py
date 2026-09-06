@@ -10,7 +10,35 @@ import re
 from typing import Any, Dict, List, Set, Tuple
 from src.config import config
 
+from datetime import datetime, timezone, timedelta
+import dateutil.parser
+
 logger = logging.getLogger(__name__)
+
+
+def is_article_fresh(article: Dict[str, Any], max_age_hours: int = 24) -> bool:
+    """
+    檢查文章發布時間是否在指定時限內 (預設 24 小時內)。
+    超過時限的陳舊新聞直接排除，避免發送過期歷史快訊。
+    """
+    pub_str = article.get("published_at")
+    if not pub_str:
+        return True
+
+    try:
+        pub_dt = dateutil.parser.isoparse(pub_str)
+        if pub_dt.tzinfo is None:
+            pub_dt = pub_dt.replace(tzinfo=timezone.utc)
+        
+        now = datetime.now(timezone.utc)
+        age = now - pub_dt
+        if age > timedelta(hours=max_age_hours):
+            logger.info(f"⏳ 排除過期新聞 (發布於 {pub_dt.strftime('%Y-%m-%d %H:%M')}, 距今 {age.total_seconds() / 3600:.1f} 小時): {article.get('title', '')[:35]}")
+            return False
+        return True
+    except Exception as e:
+        logger.warning(f"解析文章時間失敗 ({pub_str}): {e}")
+        return True
 
 
 def extract_bigrams(text: str) -> Set[str]:
@@ -35,12 +63,17 @@ def calculate_title_similarity(title_a: str, title_b: str) -> float:
 def stage_one_filter(article: Dict[str, Any]) -> Tuple[bool, List[str]]:
     """
     第一階段規則過濾（零 Token 消耗）。
-    條件：標題與內文必須同時滿足：
-    1. 命中至少一個實體關鍵字 (entities)
-    2. 命中至少一個重大動作詞 (actions)
+    條件：
+    1. 發布時間必須在時效內 (預設 24 小時內，杜絕陳舊歷史新聞)
+    2. 命中至少一個實體關鍵字 (entities)
+    3. 命中至少一個重大動作詞 (actions)
     
     回傳: (是否通過, 命中的標籤列表)
     """
+    # 1. 時效性過濾
+    if not is_article_fresh(article, max_age_hours=config.alert_max_age_hours):
+        return False, []
+
     title = article.get("title", "")
     summary = article.get("summary", "")
     content = f"{title} {summary}".lower()

@@ -63,6 +63,7 @@ class AppConfig:
         # 管線參數
         pipeline = raw_yaml.get("pipeline", {})
         self.alert_min_score: int = pipeline.get("alert_min_score", 4)
+        self.alert_max_age_hours: int = pipeline.get("alert_max_age_hours", 24)
         self.extractor_timeout: int = pipeline.get("extractor_timeout_seconds", 8)
 
         # 環境變數與機密

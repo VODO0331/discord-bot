@@ -384,11 +384,11 @@ rss_feeds:
   - name: "科技新報 TechNews"
     url: "https://technews.tw/feed/"
     category: "technology"
-  - name: "數位時代 BusinessNext"
-    url: "https://www.bnext.com.tw/rss"
-    category: "technology"
-  - name: "中央社產經新聞"
-    url: "https://feeds.feedburner.com/cnaFirstNews"
+  - name: "Yahoo 股市市場焦點"
+    url: "https://tw.stock.yahoo.com/rss?category=tw-market"
+    category: "finance"
+  - name: "經濟日報焦點"
+    url: "https://money.udn.com/rssfeed/news/1001/5588"
     category: "finance"
   - name: "TechCrunch"
     url: "https://techcrunch.com/feed/"
@@ -522,4 +522,5 @@ alert_keywords:
 # 摘要與評分參數
 pipeline:
   alert_min_score: 4
+  alert_max_age_hours: 24
   extractor_timeout_seconds: 8
