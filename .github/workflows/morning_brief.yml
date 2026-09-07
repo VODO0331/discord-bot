@@ -2,8 +2,13 @@ name: 台股開盤晨報 (Morning Brief)
 
 on:
   schedule:
-    - cron: "30 0 * * 1-5"  # 週一至週五 UTC 00:30 (台灣時間 08:30)
+    - cron: "10 0 * * 1-5"  # 週一至週五 UTC 00:10 (台灣時間 08:10，避開整點排隊高峰)
   workflow_dispatch:        # 支援手動觸發
+    inputs:
+      force:
+        description: "是否強制發送（忽略時間防呆）"
+        required: false
+        default: "true"
 
 jobs:
   morning_brief:
@@ -32,4 +37,8 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
-          python main.py --mode morning
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            python main.py --mode morning --force
+          else
+            python main.py --mode morning
+          fi

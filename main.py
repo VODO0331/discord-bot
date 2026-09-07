@@ -120,9 +120,21 @@ def handle_alert_mode(dry_run: bool = False):
     logger.info(f"突發快訊處理完成，共發送/產出 {alerts_dispatched} 則快訊")
 
 
-def handle_morning_mode(dry_run: bool = False):
+def handle_morning_mode(dry_run: bool = False, force: bool = False):
     """處理開盤晨報模式 (Morning Brief)"""
     logger.info(">>> 啟動模式: 開盤晨報 (morning) <<<")
+
+    # 檢查時效：若非強制執行且非 dry-run，檢查是否已嚴重逾時（超過台灣時間 09:30）
+    import datetime
+    tw_tz = datetime.timezone(datetime.timedelta(hours=8))
+    tw_now = datetime.datetime.now(tw_tz)
+    # 若台灣時間已超過上午 09:30 (例如因 GitHub Actions 排程嚴重延遲至下午)
+    if not force and not dry_run and (tw_now.hour > 9 or (tw_now.hour == 9 and tw_now.minute > 30)):
+        logger.warning(
+            f"⚠️ 開盤晨報執行時間已逾期 (當前台灣時間: {tw_now.strftime('%H:%M:%S')})，"
+            f"判定為 GitHub 排程排隊過久，自動略過發送以避免盤中干擾。(手動觸發可加 --force)"
+        )
+        return
 
     # 1. 抓取行情數據
     market_data = get_morning_market_data()
@@ -239,6 +251,11 @@ def main():
         action="store_true",
         help="偵錯旗標: 執行完整流程，但跳過 Webhook 發送與 Supabase 寫入，直接將 Embed JSON 印出於終端機",
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="強制執行旗標: 跳過時間或時段防呆限制，立即強制發送",
+    )
 
     args = parser.parse_args()
 
@@ -248,7 +265,7 @@ def main():
     if args.mode == "alert":
         handle_alert_mode(dry_run=args.dry_run)
     elif args.mode == "morning":
-        handle_morning_mode(dry_run=args.dry_run)
+        handle_morning_mode(dry_run=args.dry_run, force=args.force)
     elif args.mode == "wrap":
         handle_wrap_mode(dry_run=args.dry_run)
     elif args.mode == "weekly":

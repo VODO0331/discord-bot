@@ -398,7 +398,6 @@ rss_feeds:
 alert_keywords:
   # 實體追蹤目標
   entities:
-    - "台積電"
     - "TSMC"
     - "日月光"
     - "弘塑"
