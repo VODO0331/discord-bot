@@ -124,11 +124,19 @@ def handle_morning_mode(dry_run: bool = False, force: bool = False):
     """處理開盤晨報模式 (Morning Brief)"""
     logger.info(">>> 啟動模式: 開盤晨報 (morning) <<<")
 
-    # 檢查時效：若非強制執行且非 dry-run，檢查是否已嚴重逾時（超過台灣時間 09:30）
     import datetime
     tw_tz = datetime.timezone(datetime.timedelta(hours=8))
     tw_now = datetime.datetime.now(tw_tz)
-    # 若台灣時間已超過上午 09:30 (例如因 GitHub Actions 排程嚴重延遲至下午)
+    today_str = tw_now.strftime("%Y-%m-%d")
+    
+    # 建立一個虛擬的 url_hash 作為當日晨報的發送紀錄
+    daily_hash = get_url_hash(f"MORNING_BRIEF_{today_str}")
+
+    if not dry_run and not force and is_article_processed(daily_hash):
+        logger.info(f"✅ 今日 ({today_str}) 的開盤晨報已發送過，跳過備援執行。")
+        return
+
+    # 檢查時效：若非強制執行且非 dry-run，檢查是否已嚴重逾時（超過台灣時間 09:30）
     if not force and not dry_run and (tw_now.hour > 9 or (tw_now.hour == 9 and tw_now.minute > 30)):
         logger.warning(
             f"⚠️ 開盤晨報執行時間已逾期 (當前台灣時間: {tw_now.strftime('%H:%M:%S')})，"
@@ -159,13 +167,31 @@ def handle_morning_mode(dry_run: bool = False, force: bool = False):
         if not success:
             logger.error("開盤晨報派發失敗！請檢查 Webhook 設定。")
             sys.exit(1)
+        else:
+            record_article({
+                "url_hash": daily_hash,
+                "title": f"開盤晨報 {today_str}",
+                "source": "system",
+                "category": "morning"
+            })
 
     logger.info("開盤晨報處理完成")
 
 
-def handle_wrap_mode(dry_run: bool = False):
+def handle_wrap_mode(dry_run: bool = False, force: bool = False):
     """處理盤後綜述模式 (Market Wrap)"""
     logger.info(">>> 啟動模式: 盤後綜述 (wrap) <<<")
+
+    import datetime
+    tw_tz = datetime.timezone(datetime.timedelta(hours=8))
+    tw_now = datetime.datetime.now(tw_tz)
+    today_str = tw_now.strftime("%Y-%m-%d")
+    
+    daily_hash = get_url_hash(f"MARKET_WRAP_{today_str}")
+
+    if not dry_run and not force and is_article_processed(daily_hash):
+        logger.info(f"✅ 今日 ({today_str}) 的盤後綜述已發送過，跳過備援執行。")
+        return
 
     # 1. 抓取台股行情與焦點股票
     market_data = get_wrap_market_data()
@@ -189,6 +215,13 @@ def handle_wrap_mode(dry_run: bool = False):
         if not success:
             logger.error("盤後綜述派發失敗！請檢查 Webhook 設定。")
             sys.exit(1)
+        else:
+            record_article({
+                "url_hash": daily_hash,
+                "title": f"盤後綜述 {today_str}",
+                "source": "system",
+                "category": "wrap"
+            })
 
     logger.info("盤後綜述處理完成")
 
@@ -267,7 +300,7 @@ def main():
     elif args.mode == "morning":
         handle_morning_mode(dry_run=args.dry_run, force=args.force)
     elif args.mode == "wrap":
-        handle_wrap_mode(dry_run=args.dry_run)
+        handle_wrap_mode(dry_run=args.dry_run, force=args.force)
     elif args.mode == "weekly":
         handle_weekly_mode(dry_run=args.dry_run)
     else:
