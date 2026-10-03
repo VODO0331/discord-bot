@@ -189,6 +189,18 @@ def handle_wrap_mode(dry_run: bool = False, force: bool = False):
     
     daily_hash = get_url_hash(f"MARKET_WRAP_{today_str}")
 
+    # 檢查時效：若非強制執行且非 dry-run，檢查是否在合理的盤後時段內 (台灣時間 14:30 ~ 21:30)
+    # 避免因 GitHub Actions 嚴重排隊延遲至深夜或隔日凌晨，造成日期誤判並搶先占用隔日額度
+    current_time_minutes = tw_now.hour * 60 + tw_now.minute
+    start_allowed = 14 * 60 + 30  # 14:30
+    end_allowed = 21 * 60 + 30    # 21:30
+    if not force and not dry_run and not (start_allowed <= current_time_minutes <= end_allowed):
+        logger.warning(
+            f"⚠️ 盤後綜述執行時間非允許時段 (當前台灣時間: {tw_now.strftime('%H:%M:%S')})，"
+            f"允許發送時段為 14:30 ~ 21:30。判定為排隊延遲過久或跨日，自動略過發送以防干擾與污染隔日額度。(手動觸發可加 --force)"
+        )
+        return
+
     if not dry_run and not force and is_article_processed(daily_hash):
         logger.info(f"✅ 今日 ({today_str}) 的盤後綜述已發送過，跳過備援執行。")
         return

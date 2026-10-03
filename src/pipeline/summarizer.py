@@ -28,9 +28,9 @@ def call_gemini(prompt: str, json_mode: bool = False) -> str:
     # Google AI Studio 支援模型清單 (由推薦至備援)
     candidate_models = [
         "gemini-flash-latest",
+        "gemini-3.8-flash",
         "gemma-4-26b-a4b-it",
         "gemini-pro-latest",
-        "gemini-2.5-flash",
     ]
 
     for model in candidate_models:
