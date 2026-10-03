@@ -25,13 +25,12 @@ def call_gemini(prompt: str, json_mode: bool = False) -> str:
         logger.warning("未偵測到 LLM_API_KEY / GEMINI_API_KEY，將啟用智慧規則動態提煉")
         return ""
 
-    # Google AI Studio 支援模型清單 (優先採用高可用、低延遲的 flash-lite 系列)
+    # Google AI Studio 支援模型清單 (高品質旗艦首選 + 極速無縫保底階層)
     candidate_models = [
-        "gemini-flash-lite-latest",
-        "gemini-3.5-flash-lite",
-        "gemini-3.1-flash-lite",
-        "gemini-3.7-flash",
-        "gemini-flash-latest",
+        "gemini-3.8-flash",          # 首選：具備最佳推論品質與產業分析深度
+        "gemini-flash-lite-latest",  # 第一備援：1~2秒極速秒回，遇高負載(503)無縫接棒保底
+        "gemini-3.5-flash-lite",     # 第二備援：高可用輕量模型
+        "gemini-3.7-flash",          # 第三備援
     ]
 
     for model in candidate_models:
