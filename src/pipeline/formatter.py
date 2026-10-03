@@ -177,22 +177,28 @@ def format_morning_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[s
 
     # 3. 專屬獨立美股 ETF 專區 (置頂於個股族群之前，旗艦大盤與主題策略分組並列)
     etf_groups = market_data.get("etf_groups", [])
-    for group in etf_groups:
-        avg_pct, strength_label = compute_sector_metrics(group.get("quotes", []))
-        sector_name = group.get("sector_name", "")
-        icon = group.get("icon", "📈")
-        stk_items = []
-        for stk in group.get("quotes", []):
-            s_sign = "+" if stk.get("change_percent", 0) >= 0 else ""
-            s_icon = "▲" if stk.get("is_up") else "▼"
-            stk_items.append(f"{s_icon} **{stk['name']}**: {stk['price']} ({s_sign}{stk['change_percent']}%)")
+    if etf_groups:
+        fields.append({
+            "name": "────────────────────────────────────────",
+            "value": "📊 **美股重點 ETF 專屬監控專區**",
+            "inline": False,
+        })
+        for group in etf_groups:
+            avg_pct, strength_label = compute_sector_metrics(group.get("quotes", []))
+            sector_name = group.get("sector_name", "")
+            icon = group.get("icon", "📈")
+            stk_items = []
+            for stk in group.get("quotes", []):
+                s_sign = "+" if stk.get("change_percent", 0) >= 0 else ""
+                s_icon = "▲" if stk.get("is_up") else "▼"
+                stk_items.append(f"{s_icon} **{stk['name']}**: {stk['price']} ({s_sign}{stk['change_percent']}%)")
 
-        if stk_items:
-            fields.append({
-                "name": f"{strength_label} {icon} {sector_name}",
-                "value": "\n".join(stk_items)[:1024],
-                "inline": True,
-            })
+            if stk_items:
+                fields.append({
+                    "name": f"{strength_label} {icon} {sector_name}",
+                    "value": "\n".join(stk_items)[:1024],
+                    "inline": True,
+                })
 
     # 4. 美股依產業族群呈現焦點行情 (依平均強弱排序並標示 🟢/🔴 燈號)
     sector_groups = market_data.get("sector_groups", [])
@@ -203,6 +209,13 @@ def format_morning_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[s
 
     # 依平均漲跌幅由強至弱排序
     ranked_groups.sort(key=lambda x: x[0], reverse=True)
+
+    if ranked_groups:
+        fields.append({
+            "name": "────────────────────────────────────────",
+            "value": "🏢 **美股重點產業族群與龍頭個股**",
+            "inline": False,
+        })
 
     for avg_pct, strength_label, group in ranked_groups:
         sector_name = group.get("sector_name", "")
@@ -260,22 +273,28 @@ def format_wrap_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[str,
 
     # 2. 專屬獨立 ETF 監控專區 (置頂於個股族群之前，主動與被動獨立並列)
     etf_groups = market_data.get("etf_groups", [])
-    for group in etf_groups:
-        avg_pct, strength_label = compute_sector_metrics(group.get("quotes", []))
-        sector_name = group.get("sector_name", "")
-        icon = group.get("icon", "📊")
-        stk_items = []
-        for stk in group.get("quotes", []):
-            s_sign = "+" if stk.get("change_percent", 0) >= 0 else ""
-            s_icon = "▲" if stk.get("is_up") else "▼"
-            stk_items.append(f"{s_icon} **{stk['name']}**: {stk['price']} ({s_sign}{stk['change_percent']}%)")
+    if etf_groups:
+        fields.append({
+            "name": "────────────────────────────────────────",
+            "value": "📊 **台股重點 ETF 專屬監控專區 (主被動分開)**",
+            "inline": False,
+        })
+        for group in etf_groups:
+            avg_pct, strength_label = compute_sector_metrics(group.get("quotes", []))
+            sector_name = group.get("sector_name", "")
+            icon = group.get("icon", "📊")
+            stk_items = []
+            for stk in group.get("quotes", []):
+                s_sign = "+" if stk.get("change_percent", 0) >= 0 else ""
+                s_icon = "▲" if stk.get("is_up") else "▼"
+                stk_items.append(f"{s_icon} **{stk['name']}**: {stk['price']} ({s_sign}{stk['change_percent']}%)")
 
-        if stk_items:
-            fields.append({
-                "name": f"{strength_label} {icon} {sector_name}",
-                "value": "\n".join(stk_items)[:1024],
-                "inline": True,
-            })
+            if stk_items:
+                fields.append({
+                    "name": f"{strength_label} {icon} {sector_name}",
+                    "value": "\n".join(stk_items)[:1024],
+                    "inline": True,
+                })
 
     # 3. 依照產業族群分類呈现 (依平均強弱排序並標示 🟢/🔴 燈號)
     sector_groups = market_data.get("sector_groups", [])
@@ -286,6 +305,13 @@ def format_wrap_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[str,
 
     # 依平均漲跌幅由強至弱排序 (主流強勢族群排在最前面)
     ranked_groups.sort(key=lambda x: x[0], reverse=True)
+
+    if ranked_groups:
+        fields.append({
+            "name": "────────────────────────────────────────",
+            "value": "🏢 **台股關鍵產業供應鏈族群**",
+            "inline": False,
+        })
 
     for avg_pct, strength_label, group in ranked_groups:
         sector_name = group.get("sector_name", "")
