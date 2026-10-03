@@ -283,7 +283,7 @@ watchlist:
           name: "Meta"
           market: "us"
 
-    - name: "記憶體與儲存架構 (美股)"
+    - name: "DRAM 與 HBM 晶片原廠 (美股)"
       icon: "💾"
       stocks:
         - symbol: "MU"
@@ -292,11 +292,18 @@ watchlist:
         - symbol: "SKHY"
           name: "SK海力士 (ADR)"
           market: "us"
+
+    - name: "NAND Flash 與儲存架構 (美股)"
+      icon: "⚡"
+      stocks:
         - symbol: "WDC"
           name: "威騰電子 (WDC)"
           market: "us"
         - symbol: "STX"
           name: "希捷 (Seagate)"
+          market: "us"
+        - symbol: "SIMO"
+          name: "慧榮科技 (Silicon Motion)"
           market: "us"
 
     - name: "企業級 AI 軟體與數據分析"
@@ -480,8 +487,11 @@ alert_keywords:
     - "Meta"
     - "美光"
     - "SK海力士"
+    - "HBM"
     - "威騰"
     - "希捷"
+    - "慧榮"
+    - "SIMO"
     - "Palantir"
     - "戴爾"
     - "美超微"
