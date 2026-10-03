@@ -51,9 +51,7 @@ watchlist:
         - symbol: "3673.TW"
           name: "TPK-KY"
           market: "tw"
-        - symbol: "3037.TW"
-          name: "欣興"
-          market: "tw"
+       
 
     - name: "記憶體 (DRAM / Flash / 模組)"
       icon: "💾"
@@ -95,6 +93,9 @@ watchlist:
           market: "tw"
         - symbol: "6213.TW"
           name: "聯茂"
+          market: "tw"
+        - symbol: "8358.TWO"
+          name: "金居"
           market: "tw"
 
     - name: "被動元件"
