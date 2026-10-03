@@ -121,11 +121,11 @@ def get_sector_quotes(
     return sectors_summary
 
 
-def get_etf_quotes() -> List[Dict[str, Any]]:
+def get_etf_quotes(market_filter: Optional[str] = None) -> List[Dict[str, Any]]:
     """
-    取得專屬 ETF 監控專區的即時行情（核心被動與主動管理 ETF）。
+    取得專屬 ETF 監控專區的即時行情（支援依 market_filter 過濾 'tw' 或 'us'）。
     """
-    return get_sector_quotes(sectors_list=config.etf_sectors)
+    return get_sector_quotes(market_filter=market_filter, sectors_list=config.etf_sectors)
 
 
 def get_morning_market_data() -> Dict[str, Any]:
@@ -133,8 +133,8 @@ def get_morning_market_data() -> Dict[str, Any]:
     開盤晨報市場數據組合：
     - 美股四大核心指數 (^SOX, ^IXIC, ^GSPC, ^DJI)
     - 台積電 ADR (TSM) - 作為台股開盤重要領航
+    - 美股 ETF 專屬專區 (旗艦大盤與主題公債 ETF)
     - 美股科技焦點股 (按族群分組)
-    - 台股主要 ETF 專區
     """
     indices_results = []
     for item in config.us_indices:
@@ -143,13 +143,13 @@ def get_morning_market_data() -> Dict[str, Any]:
 
     tsm_quote = fetch_ticker_quote("TSM", "台積電 ADR")
     us_sectors = get_sector_quotes(market_filter="us")
-    etf_groups = get_etf_quotes()
+    etf_groups = get_etf_quotes(market_filter="us")
 
     return {
         "indices": indices_results,
         "tsm_adr": tsm_quote,
-        "sector_groups": us_sectors,
         "etf_groups": etf_groups,
+        "sector_groups": us_sectors,
     }
 
 
@@ -157,13 +157,13 @@ def get_wrap_market_data() -> Dict[str, Any]:
     """
     盤後綜述市場數據組合：
     - 台灣加權指數 (^TWII)
-    - ETF 專屬獨立專區 (核心被動與主動管理 ETF)
+    - 台股 ETF 專屬獨立專區 (核心被動與主動管理 ETF)
     - 台股熱門個股 (按產業族群分組: 載板、PCB、CCL、AI代工、散熱等)
     - 美股代表指數作為晚間前瞻
     """
     tw_index = fetch_ticker_quote("^TWII", "加權指數")
     tw_sectors = get_sector_quotes(market_filter="tw")
-    etf_groups = get_etf_quotes()
+    etf_groups = get_etf_quotes(market_filter="tw")
 
     us_preview = []
     for item in config.us_indices[:2]:
