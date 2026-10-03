@@ -368,21 +368,6 @@ watchlist:
           name: "康寧 (Corning)"
           market: "us"
 
-    - name: "航太國防與低軌太空生態"
-      icon: "🚀"
-      stocks:
-        - symbol: "SPCX"
-          name: "SpaceX 概念 (SPCX)"
-          market: "us"
-        - symbol: "LMT"
-          name: "洛克希德馬丁 (LMT)"
-          market: "us"
-        - symbol: "RTX"
-          name: "RTX 雷神"
-          market: "us"
-        - symbol: "NOC"
-          name: "諾斯洛普格魯曼 (NOC)"
-          market: "us"
 
     - name: "智慧出行與電動車生態"
       icon: "🚗"
