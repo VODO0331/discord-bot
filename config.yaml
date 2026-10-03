@@ -86,7 +86,20 @@ watchlist:
           name: "南電"
           market: "tw"
 
-    - name: "銅箔基板與 PCB 材料"
+    - name: "高階 PCB 印刷電路板"
+      icon: "🖨️"
+      stocks:
+        - symbol: "2368.TW"
+          name: "金像電"
+          market: "tw"
+        - symbol: "3044.TW"
+          name: "健鼎"
+          market: "tw"
+        - symbol: "8021.TW"
+          name: "尖點"
+          market: "tw"
+
+    - name: "銅箔基板 (CCL)"
       icon: "📑"
       stocks:
         - symbol: "2383.TW"
@@ -100,9 +113,6 @@ watchlist:
           market: "tw"
         - symbol: "8358.TWO"
           name: "金居"
-          market: "tw"
-        - symbol: "8021.TW"
-          name: "尖點"
           market: "tw"
 
     - name: "被動元件"
@@ -164,9 +174,6 @@ watchlist:
           market: "tw"
         - symbol: "6669.TW"
           name: "緯穎"
-          market: "tw"
-        - symbol: "2368.TW"
-          name: "金像電"
           market: "tw"
 
     - name: "光通訊與矽光子 (CPO)"
@@ -444,6 +451,7 @@ alert_keywords:
     - "聯茂"
     - "金居"
     - "尖點"
+    - "健鼎"
     - "CCL"
     - "PCB"
     - "國巨"
