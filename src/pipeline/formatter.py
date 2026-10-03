@@ -14,6 +14,9 @@ COLOR_NEUTRAL = 0x3498DB   # 中性/總經藍 (#3498DB)
 
 DISCLAIMER_FOOTER = "本資訊僅供研究與學習參考，不構成任何形式之投資建議。"
 
+# 視覺分隔線常數 (長度 38 個字元，用於 Discord Embed 區塊分隔)
+DIVIDER_LINE = "─" * 38
+
 
 def format_alert_embed(
     article: Dict[str, Any],
@@ -179,7 +182,7 @@ def format_morning_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[s
     etf_groups = market_data.get("etf_groups", [])
     if etf_groups:
         fields.append({
-            "name": "────────────────────────────────────────",
+            "name": DIVIDER_LINE,
             "value": "📊 **美股重點 ETF 專屬監控專區**",
             "inline": False,
         })
@@ -212,7 +215,7 @@ def format_morning_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[s
 
     if ranked_groups:
         fields.append({
-            "name": "────────────────────────────────────────",
+            "name": DIVIDER_LINE,
             "value": "🏢 **美股重點產業族群與龍頭個股**",
             "inline": False,
         })
@@ -275,7 +278,7 @@ def format_wrap_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[str,
     etf_groups = market_data.get("etf_groups", [])
     if etf_groups:
         fields.append({
-            "name": "────────────────────────────────────────",
+            "name": DIVIDER_LINE,
             "value": "📊 **台股重點 ETF 專屬監控專區 (主被動分開)**",
             "inline": False,
         })
@@ -308,7 +311,7 @@ def format_wrap_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[str,
 
     if ranked_groups:
         fields.append({
-            "name": "────────────────────────────────────────",
+            "name": DIVIDER_LINE,
             "value": "🏢 **台股關鍵產業供應鏈族群**",
             "inline": False,
         })
