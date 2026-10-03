@@ -86,14 +86,19 @@ def fetch_ticker_quote(symbol: str, display_name: Optional[str] = None) -> Dict[
         }
 
 
-def get_sector_quotes(market_filter: Optional[str] = None) -> List[Dict[str, Any]]:
+def get_sector_quotes(
+    market_filter: Optional[str] = None,
+    sectors_list: Optional[List[Dict[str, Any]]] = None,
+) -> List[Dict[str, Any]]:
     """
-    按產業分類批次取得個股行情。
+    按族群分類批次取得行情。
     market_filter 可指定 'tw' 或 'us' 來過濾特定市場。
+    sectors_list 可指定特定族群設定清單（預設為 config.industry_sectors）。
     """
     sectors_summary = []
+    target_sectors = sectors_list if sectors_list is not None else config.industry_sectors
 
-    for sector in config.industry_sectors:
+    for sector in target_sectors:
         sector_name = sector.get("name", "一般族群")
         icon = sector.get("icon", "📌")
         matched_quotes = []
@@ -116,12 +121,20 @@ def get_sector_quotes(market_filter: Optional[str] = None) -> List[Dict[str, Any
     return sectors_summary
 
 
+def get_etf_quotes() -> List[Dict[str, Any]]:
+    """
+    取得專屬 ETF 監控專區的即時行情（核心被動與主動管理 ETF）。
+    """
+    return get_sector_quotes(sectors_list=config.etf_sectors)
+
+
 def get_morning_market_data() -> Dict[str, Any]:
     """
     開盤晨報市場數據組合：
     - 美股四大核心指數 (^SOX, ^IXIC, ^GSPC, ^DJI)
     - 台積電 ADR (TSM) - 作為台股開盤重要領航
     - 美股科技焦點股 (按族群分組)
+    - 台股主要 ETF 專區
     """
     indices_results = []
     for item in config.us_indices:
@@ -130,11 +143,13 @@ def get_morning_market_data() -> Dict[str, Any]:
 
     tsm_quote = fetch_ticker_quote("TSM", "台積電 ADR")
     us_sectors = get_sector_quotes(market_filter="us")
+    etf_groups = get_etf_quotes()
 
     return {
         "indices": indices_results,
         "tsm_adr": tsm_quote,
         "sector_groups": us_sectors,
+        "etf_groups": etf_groups,
     }
 
 
@@ -142,11 +157,13 @@ def get_wrap_market_data() -> Dict[str, Any]:
     """
     盤後綜述市場數據組合：
     - 台灣加權指數 (^TWII)
-    - 台股熱門個股 (按產業族群分組: 載板、被動元件、AI代工、散熱等)
+    - ETF 專屬獨立專區 (核心被動與主動管理 ETF)
+    - 台股熱門個股 (按產業族群分組: 載板、PCB、CCL、AI代工、散熱等)
     - 美股代表指數作為晚間前瞻
     """
     tw_index = fetch_ticker_quote("^TWII", "加權指數")
     tw_sectors = get_sector_quotes(market_filter="tw")
+    etf_groups = get_etf_quotes()
 
     us_preview = []
     for item in config.us_indices[:2]:
@@ -154,6 +171,7 @@ def get_wrap_market_data() -> Dict[str, Any]:
 
     return {
         "tw_index": tw_index,
+        "etf_groups": etf_groups,
         "sector_groups": tw_sectors,
         "us_preview": us_preview,
     }

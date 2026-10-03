@@ -32,12 +32,16 @@ class AppConfig:
         
         # 產業分類觀察名單
         self.industry_sectors: List[Dict[str, Any]] = watchlist.get("industry_sectors", [])
+        
+        # ETF 專屬獨立觀察名單 (主被動分開)
+        self.etf_sectors: List[Dict[str, Any]] = watchlist.get("etf_sectors", [])
 
-        # 自動由產業名單聚合出美股與台股獨立清單 (維持向後相容)
+        # 自動由產業與 ETF 名單聚合出美股與台股獨立清單 (維持向後相容)
         self.us_stocks: List[Dict[str, str]] = []
         self.tw_stocks: List[Dict[str, str]] = []
 
-        for sector in self.industry_sectors:
+        all_sectors = self.etf_sectors + self.industry_sectors
+        for sector in all_sectors:
             for stk in sector.get("stocks", []):
                 market = stk.get("market", "").lower()
                 stock_item = {

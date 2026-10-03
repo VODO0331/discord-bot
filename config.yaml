@@ -11,6 +11,37 @@ watchlist:
     - symbol: "^DJI"
       name: "道瓊工業"
 
+  # ------------------ ETF 專屬獨立監控專區 (置頂於個股之前，主被動分開) ------------------
+  etf_sectors:
+    - name: "核心被動型 ETF"
+      icon: "📊"
+      stocks:
+        - symbol: "0050.TW"
+          name: "元大台灣50"
+          market: "tw"
+        - symbol: "0052.TW"
+          name: "富邦科技"
+          market: "tw"
+        - symbol: "00631L.TW"
+          name: "元大台灣50正2"
+          market: "tw"
+        - symbol: "00881.TW"
+          name: "國泰台灣5G+"
+          market: "tw"
+        - symbol: "009816.TW"
+          name: "凱基台灣TOP50"
+          market: "tw"
+
+    - name: "主動式管理 ETF"
+      icon: "🚀"
+      stocks:
+        - symbol: "00981A.TW"
+          name: "統一台股增長"
+          market: "tw"
+        - symbol: "00988A.TW"
+          name: "統一全球創新"
+          market: "tw"
+
   # 產業與關鍵供應鏈分類觀察名單 (依產業族群分組)
   industry_sectors:
     # ------------------ 台股關鍵產業族群 ------------------
@@ -531,6 +562,15 @@ alert_keywords:
     - "Fed"
     - "先進封裝"
     - "CoWoS"
+    - "0050"
+    - "0052"
+    - "00631L"
+    - "00881"
+    - "00981A"
+    - "00988A"
+    - "009816"
+    - "主動式ETF"
+    - "主動型ETF"
 
   # 重大市場或產業事件動作詞
   actions:
