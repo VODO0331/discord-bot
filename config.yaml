@@ -693,3 +693,11 @@ pipeline:
   alert_min_score: 4
   alert_max_age_hours: 24
   extractor_timeout_seconds: 8
+
+# 大跌避難模式 (國喪日) 觸發門檻
+panic_mode:
+  enabled: true
+  tw_point_drop: 900          # 台股加權指數單日下跌點數達到 900 點
+  tw_pct_drop: 3.5            # 或台股加權指數單日跌幅達到 3.5%
+  us_pct_drop: 3.0            # 美股主要指數 (那指或費半) 單日跌幅達到 3.0%
+

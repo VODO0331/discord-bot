@@ -70,6 +70,13 @@ class AppConfig:
         self.alert_max_age_hours: int = pipeline.get("alert_max_age_hours", 24)
         self.extractor_timeout: int = pipeline.get("extractor_timeout_seconds", 8)
 
+        # 大跌避難模式 (國喪日) 參數
+        panic = raw_yaml.get("panic_mode", {})
+        self.panic_enabled: bool = panic.get("enabled", True)
+        self.panic_tw_point_drop: float = float(panic.get("tw_point_drop", 900))
+        self.panic_tw_pct_drop: float = float(panic.get("tw_pct_drop", 3.5))
+        self.panic_us_pct_drop: float = float(panic.get("us_pct_drop", 3.0))
+
         # 環境變數與機密
         self.discord_webhook_daily_url: str = os.getenv("DISCORD_WEBHOOK_DAILY_URL", "").strip()
         self.discord_webhook_alert_url: str = os.getenv("DISCORD_WEBHOOK_ALERT_URL", "").strip()
