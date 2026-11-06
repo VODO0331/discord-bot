@@ -84,9 +84,6 @@ watchlist:
     - name: "半導體先進製程與封測"
       icon: "🏭"
       stocks:
-        - symbol: "TSM"
-          name: "台積電 ADR"
-          market: "us"
         - symbol: "2330.TW"
           name: "台積電"
           market: "tw"
