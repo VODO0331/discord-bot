@@ -160,26 +160,6 @@ def format_morning_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[s
                 "inline": False,
             })
 
-        # 產業族群動態 (避難模式下僅列出族群名稱與強弱燈號，不列出跌幅百分比與個股明細)
-        sector_groups = market_data.get("sector_groups", [])
-        if sector_groups:
-            ranked_groups = []
-            for group in sector_groups:
-                avg_pct, _ = compute_sector_metrics(group.get("quotes", []))
-                indicator = "🟢" if avg_pct > 0 else ("🔴" if avg_pct < 0 else "⚪")
-                ranked_groups.append((avg_pct, indicator, group.get("icon", "📌"), group.get("sector_name", "")))
-            ranked_groups.sort(key=lambda x: x[0], reverse=True)
-
-            sector_summary_lines = [
-                f"{indicator} {icon} **{name}**"
-                for _, indicator, icon, name in ranked_groups
-            ]
-            fields.append({
-                "name": "🏢 美股產業族群動態 (詳細跌幅已啟動心靈保護封存)",
-                "value": "\n".join(sector_summary_lines)[:1024],
-                "inline": False,
-            })
-
         fields.append({
             "name": "☕ 投資人心靈防護與開盤指南",
             "value": (
@@ -345,26 +325,6 @@ def format_wrap_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[str,
             "value": f"📉 收盤點數: **{tw_index.get('price')}** | 跌點: **{change_point} 點** ({pct}%)",
             "inline": False,
         })
-
-        # 避難模式下僅列出族群名稱與強弱燈號，不列出跌幅百分比與個股明細
-        sector_groups = market_data.get("sector_groups", [])
-        if sector_groups:
-            ranked_groups = []
-            for group in sector_groups:
-                avg_pct, _ = compute_sector_metrics(group.get("quotes", []))
-                indicator = "🟢" if avg_pct > 0 else ("🔴" if avg_pct < 0 else "⚪")
-                ranked_groups.append((avg_pct, indicator, group.get("icon", "📌"), group.get("sector_name", "")))
-            ranked_groups.sort(key=lambda x: x[0], reverse=True)
-
-            sector_summary_lines = [
-                f"{indicator} {icon_s} **{name}**"
-                for _, indicator, icon_s, name in ranked_groups
-            ]
-            fields.append({
-                "name": "🏢 今日各大產業族群動態 (詳細跌幅已啟動心靈保護封存)",
-                "value": "\n".join(sector_summary_lines)[:1024],
-                "inline": False,
-            })
 
         # 幽默且莊嚴的避難指引
         fields.append({
