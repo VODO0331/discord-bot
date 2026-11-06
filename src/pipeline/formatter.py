@@ -172,7 +172,7 @@ def format_morning_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[s
 
         embed = {
             "author": {
-                "name": "🌑 隔夜美股市場緊急避難通報 (Morning Brief 特別版)",
+                "name": "🌑 隔夜美股市場緊急避難通報 (Morning Brief)",
                 "icon_url": "https://cdn-icons-png.flaticon.com/512/869/869869.png",
             },
             "title": f"【全體默哀】隔夜美股遭遇重大亂流重挫 — {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
@@ -340,7 +340,7 @@ def format_wrap_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[str,
 
         embed = {
             "author": {
-                "name": "🕯️ 國家級市場緊急災情通報：今日全體默哀特別版",
+                "name": "🕯️ 國家級市場緊急災情通報：今日全體默哀",
                 "icon_url": "https://cdn-icons-png.flaticon.com/512/3222/3222800.png",
             },
             "title": f"【休市默哀】台股遭遇系統性崩跌 — {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
