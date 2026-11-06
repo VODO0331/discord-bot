@@ -160,21 +160,22 @@ def format_morning_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[s
                 "inline": False,
             })
 
-        # 產業族群動態 (僅保留族群強弱燈號與概況，不展開個股跌幅)
+        # 產業族群動態 (避難模式下僅列出族群名稱與強弱燈號，不列出跌幅百分比與個股明細)
         sector_groups = market_data.get("sector_groups", [])
         if sector_groups:
             ranked_groups = []
             for group in sector_groups:
-                avg_pct, strength_label = compute_sector_metrics(group.get("quotes", []))
-                ranked_groups.append((avg_pct, strength_label, group.get("icon", "📌"), group.get("sector_name", "")))
+                avg_pct, _ = compute_sector_metrics(group.get("quotes", []))
+                indicator = "🟢" if avg_pct > 0 else ("🔴" if avg_pct < 0 else "⚪")
+                ranked_groups.append((avg_pct, indicator, group.get("icon", "📌"), group.get("sector_name", "")))
             ranked_groups.sort(key=lambda x: x[0], reverse=True)
 
             sector_summary_lines = [
-                f"{strength_label} {icon} **{name}**"
-                for _, strength_label, icon, name in ranked_groups
+                f"{indicator} {icon} **{name}**"
+                for _, indicator, icon, name in ranked_groups
             ]
             fields.append({
-                "name": "🏢 美股產業族群強弱概況 (個股詳細跌幅已啟動心靈保護封存)",
+                "name": "🏢 美股產業族群動態 (詳細跌幅已啟動心靈保護封存)",
                 "value": "\n".join(sector_summary_lines)[:1024],
                 "inline": False,
             })
@@ -196,8 +197,8 @@ def format_morning_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[s
             },
             "title": f"【全體默哀】隔夜美股遭遇重大亂流重挫 — {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
             "description": (
-                f"⚠️ **系統偵測到隔夜美股主要指數重摔（{', '.join(panic_reasons)}）。**\n"
-                "為維護各位投資人身心靈健康與血壓穩定，今日個股及 ETF 詳細跌幅已啟動保護機制暫停展開。\n\n"
+                f"**⚠️ 系統偵測到隔夜美股主要指數重摔（{', '.join(panic_reasons)}）。**\n"
+                "**為維護各位投資人身心靈健康與血壓穩定，今日個股及 ETF 詳細跌幅已啟動保護機制暫停展開。**\n\n"
                 + ai_summary[:3500]
             ),
             "color": COLOR_MOURNING,
@@ -345,21 +346,22 @@ def format_wrap_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[str,
             "inline": False,
         })
 
-        # 保留產業族群平均強弱概況，但不列個股詳細跌幅
+        # 避難模式下僅列出族群名稱與強弱燈號，不列出跌幅百分比與個股明細
         sector_groups = market_data.get("sector_groups", [])
         if sector_groups:
             ranked_groups = []
             for group in sector_groups:
-                avg_pct, strength_label = compute_sector_metrics(group.get("quotes", []))
-                ranked_groups.append((avg_pct, strength_label, group.get("icon", "📌"), group.get("sector_name", "")))
+                avg_pct, _ = compute_sector_metrics(group.get("quotes", []))
+                indicator = "🟢" if avg_pct > 0 else ("🔴" if avg_pct < 0 else "⚪")
+                ranked_groups.append((avg_pct, indicator, group.get("icon", "📌"), group.get("sector_name", "")))
             ranked_groups.sort(key=lambda x: x[0], reverse=True)
 
             sector_summary_lines = [
-                f"{strength_label} {icon_s} **{name}**"
-                for _, strength_label, icon_s, name in ranked_groups
+                f"{indicator} {icon_s} **{name}**"
+                for _, indicator, icon_s, name in ranked_groups
             ]
             fields.append({
-                "name": "🏢 今日各大產業族群強弱動態 (個股與 ETF 明細已啟動心靈保護封存)",
+                "name": "🏢 今日各大產業族群動態 (詳細跌幅已啟動心靈保護封存)",
                 "value": "\n".join(sector_summary_lines)[:1024],
                 "inline": False,
             })
@@ -383,8 +385,8 @@ def format_wrap_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[str,
             },
             "title": f"【休市默哀】台股遭遇系統性崩跌 — {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
             "description": (
-                f"🚨 **市場通報：加權指數今日已被空頭全數接管（{panic_msg}）。**\n"
-                "為維護各位投資人身心靈健康與血壓穩定，今日個股及 ETF 詳細跌幅已全數封存隱藏。\n\n"
+                f"**🚨 市場通報：加權指數今日已被空頭全數接管（{panic_msg}）。**\n"
+                "**為維護各位投資人身心靈健康與血壓穩定，今日個股及 ETF 詳細跌幅已全數封存隱藏。**\n\n"
                 + ai_summary[:3500]
             ),
             "color": COLOR_MOURNING,
