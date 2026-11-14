@@ -12,6 +12,7 @@ from typing import Any, Dict, List
 
 from src.config import config
 from src.data_sources.extractor import extract_article_content
+from src.data_sources.insider import fetch_insider_transactions
 from src.data_sources.market import get_morning_market_data, get_wrap_market_data
 from src.data_sources.rss import fetch_all_rss_articles
 from src.db import (
@@ -25,6 +26,7 @@ from src.delivery.webhook import dispatch_webhook
 from src.pipeline.filter import deduplicate_batch_articles, stage_one_filter
 from src.pipeline.formatter import (
     format_alert_embed,
+    format_insider_embed,
     format_morning_embed,
     format_weekly_embed,
     format_wrap_embed,
@@ -279,6 +281,57 @@ def handle_weekly_mode(dry_run: bool = False):
     logger.info("週末產業週報處理完成")
 
 
+def handle_insider_mode(dry_run: bool = False, force: bool = False):
+    """處理美股內部人交易監控模式 (Insider Monitor)"""
+    logger.info(">>> 啟動模式: 美股內部人交易監控 (insider) <<<")
+
+    if not config.insider_enabled and not force:
+        logger.info("內部人交易監控已停用，結束流程")
+        return
+
+    # 1. 抓取近 N 天內達標的公開市場買賣交易
+    transactions = fetch_insider_transactions()
+    if not transactions:
+        logger.info("近期無符合金額門檻之美股內部人交易申報，結束流程")
+        return
+
+    # 2. 透過 Supabase 去重，僅保留尚未推播過的新申報紀錄
+    new_transactions: List[Dict[str, Any]] = []
+    for tx in transactions:
+        tx_key = f"INSIDER_{tx['symbol']}_{tx['date']}_{tx['insider']}_{tx['shares']}_{tx['action']}"
+        tx_hash = get_url_hash(tx_key)
+        if not dry_run and not force and is_article_processed(tx_hash):
+            continue
+        tx["_hash"] = tx_hash
+        new_transactions.append(tx)
+
+    if not new_transactions:
+        logger.info("所有達標之內部人交易皆已推播過，無新申報紀錄")
+        return
+
+    # 3. 卡片排版
+    payload = format_insider_embed(new_transactions)
+
+    if dry_run:
+        print("\n" + "=" * 30 + " [DRY-RUN INSIDER EMBED PAYLOAD] " + "=" * 30)
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        print("=" * 80 + "\n")
+    else:
+        success = dispatch_webhook(payload, mode="insider")
+        if not success:
+            logger.error("美股內部人交易監控派發失敗！請檢查 Webhook 設定。")
+            sys.exit(1)
+        for tx in new_transactions:
+            record_article({
+                "url_hash": tx["_hash"],
+                "title": f"{tx['symbol']} {tx['insider']} {tx['action']} {tx['shares']}股",
+                "source": "sec_form4",
+                "category": "insider",
+            })
+
+    logger.info(f"美股內部人交易監控處理完成，共推播 {len(new_transactions)} 筆新申報")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Discord 市場與產業資訊自動推播系統",
@@ -288,8 +341,8 @@ def main():
         "--mode",
         type=str,
         required=True,
-        choices=["alert", "morning", "wrap", "weekly"],
-        help="執行模式: alert (突發快訊), morning (開盤晨報), wrap (盤後綜述), weekly (週末週報)",
+        choices=["alert", "morning", "wrap", "weekly", "insider"],
+        help="執行模式: alert (突發快訊), morning (開盤晨報), wrap (盤後綜述), weekly (週末週報), insider (美股內部人交易監控)",
     )
     parser.add_argument(
         "--dry-run",
@@ -315,6 +368,8 @@ def main():
         handle_wrap_mode(dry_run=args.dry_run, force=args.force)
     elif args.mode == "weekly":
         handle_weekly_mode(dry_run=args.dry_run)
+    elif args.mode == "insider":
+        handle_insider_mode(dry_run=args.dry_run, force=args.force)
     else:
         logger.error(f"未知模式: {args.mode}")
         sys.exit(1)

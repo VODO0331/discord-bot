@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 def get_webhook_url_for_mode(mode: str) -> str:
     """根據模式決定發送的頻道 Webhook URL"""
-    if mode == "alert":
+    if mode in ("alert", "insider"):
         return config.discord_webhook_alert_url
     else:
         # morning, wrap, weekly 皆派發至每日頻道 (Daily Channel)
@@ -30,7 +30,7 @@ def dispatch_webhook(payload: Dict[str, Any], mode: str, max_retries: int = 3) -
     """
     webhook_url = get_webhook_url_for_mode(mode)
     if not webhook_url:
-        env_var_name = "DISCORD_WEBHOOK_ALERT_URL" if mode == "alert" else "DISCORD_WEBHOOK_DAILY_URL"
+        env_var_name = "DISCORD_WEBHOOK_ALERT_URL" if mode in ("alert", "insider") else "DISCORD_WEBHOOK_DAILY_URL"
         logger.error(
             f"❌ 模式 [{mode}] 缺少對應的 Discord Webhook URL！\n"
             f"請確認 GitHub Repository Settings -> Secrets 中是否已正確設定 '{env_var_name}'。"

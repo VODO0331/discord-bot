@@ -78,6 +78,13 @@ class AppConfig:
         self.panic_tw_pct_drop: float = float(panic.get("tw_pct_drop", 3.5))
         self.panic_us_pct_drop: float = float(panic.get("us_pct_drop", 3.0))
 
+        # 美股內部人交易監控參數
+        insider = raw_yaml.get("insider_monitor", {})
+        self.insider_enabled: bool = insider.get("enabled", True)
+        self.insider_min_value_usd: float = float(insider.get("min_value_usd", 1000000))
+        self.insider_min_buy_value_usd: float = float(insider.get("min_buy_value_usd", 100000))
+        self.insider_lookback_days: int = int(insider.get("lookback_days", 7))
+
         # 環境變數與機密
         self.discord_webhook_daily_url: str = os.getenv("DISCORD_WEBHOOK_DAILY_URL", "").strip()
         self.discord_webhook_alert_url: str = os.getenv("DISCORD_WEBHOOK_ALERT_URL", "").strip()

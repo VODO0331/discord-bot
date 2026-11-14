@@ -742,3 +742,10 @@ panic_mode:
   tw_pct_drop: 3.5            # 或台股加權指數單日跌幅達到 3.5%
   us_pct_drop: 3.0            # 美股主要指數 (那指或費半) 單日跌幅達到 3.0%
 
+# 美股內部人交易監控設定 (SEC Form 4)
+insider_monitor:
+  enabled: true
+  min_value_usd: 1000000      # 公開市場賣出金額門檻 (預設 100 萬美元以上)
+  min_buy_value_usd: 100000   # 公開市場買進金額門檻 (較稀缺，10 萬美元以上即通報)
+  lookback_days: 7            # 每次掃描回溯天數 (搭配資料庫去重，不重複推播)
+

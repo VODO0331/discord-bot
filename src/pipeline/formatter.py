@@ -485,3 +485,73 @@ def format_weekly_embed(ai_summary: str, top_articles: List[Dict[str, Any]]) -> 
     }
 
     return {"embeds": [embed]}
+
+
+def format_insider_embed(transactions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    建構美股內部人交易監控 (SEC Form 4) Discord Embed。
+    自動區分「公開市場買進 (重點訊號)」與「公開市場賣出」。
+    """
+    buy_count = sum(1 for t in transactions if t.get("action") == "buy")
+    sell_count = sum(1 for t in transactions if t.get("action") == "sell")
+
+    if buy_count > 0:
+        embed_color = COLOR_BULLISH
+    else:
+        embed_color = COLOR_BEARISH
+
+    description = (
+        f"本次掃描美股觀察名單共偵測 **{len(transactions)} 筆** 達標申報"
+        f"（🟢 公開市場買進 **{buy_count} 筆**｜🔴 公開市場賣出 **{sell_count} 筆**）。\n"
+        "已自動過濾 `$0` 員工股票獎勵與贈與，僅列實質公開市場交易。"
+    )
+
+    fields = []
+    # Discord 單張 Embed 上限 25 個欄位，取前 15 筆重點交易展示
+    for tx in transactions[:15]:
+        is_buy = tx.get("action") == "buy"
+        action_badge = "🟢 【重點買進訊號】" if is_buy else "🔴 【高管申報賣出】"
+        action_verb = "買進" if is_buy else "賣出"
+        symbol = tx.get("symbol", "")
+        company_name = tx.get("company_name", symbol)
+        insider = tx.get("insider", "未知")
+        position = tx.get("position", "內部人")
+        date_str = tx.get("date", "")
+        shares = tx.get("shares", 0)
+        value_usd = tx.get("value_usd", 0.0)
+        price_hint = tx.get("price_hint", "未揭露")
+
+        field_value = (
+            f"• **內部人**：{insider}（{position}）\n"
+            f"• **交易明細**：`{date_str}` {action_verb} **{shares:,} 股**（成交價 {price_hint}）\n"
+            f"• **成交總額**：**${value_usd:,.0f} USD**"
+        )
+        fields.append({
+            "name": f"{action_badge} {symbol} {company_name}",
+            "value": field_value[:1024],
+            "inline": False,
+        })
+
+    if len(transactions) > 15:
+        fields.append({
+            "name": "📌 補充說明",
+            "value": f"其餘尚有 {len(transactions) - 15} 筆金額較小之申報已省略。",
+            "inline": False,
+        })
+
+    embed = {
+        "author": {
+            "name": "🕵️ 美股內部人交易監控 (SEC Form 4)",
+            "icon_url": "https://cdn-icons-png.flaticon.com/512/2910/2910795.png",
+        },
+        "title": f"【內部人動向】美股觀察名單高管大額買賣申報 — {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
+        "description": description,
+        "color": embed_color,
+        "fields": fields,
+        "footer": {
+            "text": DISCLAIMER_FOOTER,
+        },
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+    return {"embeds": [embed]}
