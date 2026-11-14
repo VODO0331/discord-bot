@@ -487,10 +487,10 @@ def format_weekly_embed(ai_summary: str, top_articles: List[Dict[str, Any]]) -> 
     return {"embeds": [embed]}
 
 
-def format_insider_embed(transactions: List[Dict[str, Any]]) -> Dict[str, Any]:
+def format_insider_embed(transactions: List[Dict[str, Any]], ai_summary: str = "") -> Dict[str, Any]:
     """
     建構美股內部人交易監控 (SEC Form 4) Discord Embed。
-    自動區分「公開市場買進 (重點訊號)」與「公開市場賣出」。
+    自動區分「公開市場買進 (重點訊號)」與「公開市場賣出」，並整合 AI 市場動態研判。
     """
     buy_count = sum(1 for t in transactions if t.get("action") == "buy")
     sell_count = sum(1 for t in transactions if t.get("action") == "sell")
@@ -500,11 +500,16 @@ def format_insider_embed(transactions: List[Dict[str, Any]]) -> Dict[str, Any]:
     else:
         embed_color = COLOR_BEARISH
 
-    description = (
+    summary_header = (
         f"本次掃描美股觀察名單共偵測 **{len(transactions)} 筆** 達標申報"
         f"（🟢 公開市場買進 **{buy_count} 筆**｜🔴 公開市場賣出 **{sell_count} 筆**）。\n"
         "已自動過濾 `$0` 員工股票獎勵與贈與，僅列實質公開市場交易。"
     )
+
+    if ai_summary:
+        description = f"{summary_header}\n\n{DIVIDER_LINE}\n🧠 **AI 籌碼與市場動態研判**\n{ai_summary}"
+    else:
+        description = summary_header
 
     fields = []
     # Discord 單張 Embed 上限 25 個欄位，取前 15 筆重點交易展示

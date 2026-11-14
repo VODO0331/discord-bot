@@ -33,6 +33,7 @@ from src.pipeline.formatter import (
 )
 from src.pipeline.summarizer import (
     summarize_alert,
+    summarize_insider,
     summarize_morning,
     summarize_weekly,
     summarize_wrap,
@@ -309,8 +310,11 @@ def handle_insider_mode(dry_run: bool = False, force: bool = False):
         logger.info("所有達標之內部人交易皆已推播過，無新申報紀錄")
         return
 
-    # 3. 卡片排版
-    payload = format_insider_embed(new_transactions)
+    # 3. AI 籌碼與市場動態分析
+    ai_summary = summarize_insider(new_transactions)
+
+    # 4. 卡片排版
+    payload = format_insider_embed(new_transactions, ai_summary)
 
     if dry_run:
         print("\n" + "=" * 30 + " [DRY-RUN INSIDER EMBED PAYLOAD] " + "=" * 30)

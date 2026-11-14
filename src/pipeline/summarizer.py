@@ -332,3 +332,44 @@ def summarize_weekly(articles: List[Dict[str, Any]]) -> str:
 - **核心脈絡**：各國晶片法案與海外設廠進展持續推動半導體供應鏈重構。
 - **供應鏈意涵**：具備海外建廠服務能力之供應鏈夥伴將享有更高戰略溢價。
 """.strip()
+
+
+def summarize_insider(transactions: List[Dict[str, Any]]) -> str:
+    """
+    美股內部人交易監控 (Insider Monitor)：
+    將達標的 SEC Form 4 內部人買賣明細交由 Gemini AI 分析，
+    解讀管理層信心訊號、區分常態減持與罕見買進，並推演潛在市場與產業動態。
+    """
+    tx_lines = []
+    for idx, tx in enumerate(transactions[:15], 1):
+        action_zh = "公開市場買進" if tx.get("action") == "buy" else "公開市場賣出"
+        tx_lines.append(
+            f"{idx}. [{tx.get('date')}] {tx.get('symbol')} ({tx.get('company_name')} / {tx.get('sector')}) | "
+            f"{tx.get('insider')} ({tx.get('position')}) {action_zh} {tx.get('shares'):,} 股，"
+            f"總額 ${tx.get('value_usd'):,.0f} USD ({tx.get('price_hint')})"
+        )
+
+    tx_digest = "\n".join(tx_lines)
+
+    prompt = f"""
+你是一位專精於美股科技與半導體產業的資深研究分析師。以下是最新偵測到的美股觀察名單內部人交易申報紀錄 (SEC Form 4，已排除 $0 股票獎勵與贈與)：
+
+{tx_digest}
+
+請以繁體中文進行簡明扼要的籌碼與市場動態研判，格式如下：
+1. **🎯 核心訊號解讀**：若有「公開市場買進」請重點剖析管理層自掏腰包背後的信心意義（尤其多人同步買進時）；針對大額賣出，客觀評估屬於單一高管例行減持或同族群集中調節。
+2. **🌐 產業與市場動態推演**：結合上述標的分屬的產業板塊（例如光通訊、雲端軟體、半導體、CSP 等），推演對市場情緒與投資人觀察方向的實質參考。
+
+字數控制在 150~220 字之間，語氣專業、客觀、不誇大、不構成投資建議。
+"""
+    response = call_gemini(prompt)
+    if response:
+        return response.strip()
+
+    buy_count = sum(1 for t in transactions if t.get("action") == "buy")
+    sell_count = sum(1 for t in transactions if t.get("action") == "sell")
+    return (
+        f"**🎯 核心訊號解讀**：本次偵測 {buy_count} 筆公開市場買進與 {sell_count} 筆大額賣出申報。"
+        f"內部人真金白銀買進通常具備較強的管理層信心參考價值；賣出則多需留意是否出現多高管同期集中減持。\n"
+        f"**🌐 產業與市場動態推演**：建議持續比對相關公司後續財報指引與同族群股價表現，觀察籌碼面變化。"
+    )
