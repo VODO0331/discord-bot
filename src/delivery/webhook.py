@@ -15,7 +15,9 @@ logger = logging.getLogger(__name__)
 
 def get_webhook_url_for_mode(mode: str) -> str:
     """根據模式決定發送的頻道 Webhook URL"""
-    if mode in ("alert", "insider"):
+    if mode == "insider":
+        return config.discord_webhook_insider_url or config.discord_webhook_alert_url
+    elif mode == "alert":
         return config.discord_webhook_alert_url
     else:
         # morning, wrap, weekly 皆派發至每日頻道 (Daily Channel)

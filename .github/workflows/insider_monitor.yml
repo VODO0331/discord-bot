@@ -25,6 +25,7 @@ jobs:
 
       - name: 執行美股內部人交易掃描與派發
         env:
+          DISCORD_WEBHOOK_INSIDER_URL: ${{ secrets.DISCORD_WEBHOOK_INSIDER_URL }}
           DISCORD_WEBHOOK_ALERT_URL: ${{ secrets.DISCORD_WEBHOOK_ALERT_URL }}
           DISCORD_WEBHOOK_DAILY_URL: ${{ secrets.DISCORD_WEBHOOK_DAILY_URL }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY || secrets.GEMINI_API_KEY }}
