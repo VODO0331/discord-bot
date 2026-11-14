@@ -63,6 +63,7 @@ class AppConfig:
         alert_kw = raw_yaml.get("alert_keywords", {})
         self.alert_entities: List[str] = alert_kw.get("entities", [])
         self.alert_actions: List[str] = alert_kw.get("actions", [])
+        self.alert_blacklist: List[str] = alert_kw.get("blacklist", [])
 
         # 管線參數
         pipeline = raw_yaml.get("pipeline", {})

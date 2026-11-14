@@ -60,16 +60,40 @@ def calculate_title_similarity(title_a: str, title_b: str) -> float:
     return len(intersection) / len(union)
 
 
+def is_blacklisted(article: Dict[str, Any]) -> bool:
+    """
+    檢查文章標題或摘要是否命中黑名單關鍵字 (例如娛樂、八卦、名嘴看法等非產業雜訊)。
+    命中則回傳 True 予以排除。
+    """
+    if not config.alert_blacklist:
+        return False
+
+    title = article.get("title", "")
+    summary = article.get("summary", "")
+    content = f"{title} {summary}".lower()
+
+    for kw in config.alert_blacklist:
+        if kw and kw.lower() in content:
+            logger.info(f"🚫 黑名單排除 [{kw}]: {title[:35]}")
+            return True
+    return False
+
+
 def stage_one_filter(article: Dict[str, Any]) -> Tuple[bool, List[str]]:
     """
     第一階段規則過濾（零 Token 消耗）。
     條件：
-    1. 發布時間必須在時效內 (預設 24 小時內，杜絕陳舊歷史新聞)
-    2. 命中至少一個實體關鍵字 (entities)
-    3. 命中至少一個重大動作詞 (actions)
+    1. 不可命中黑名單關鍵字 (blacklist)
+    2. 發布時間必須在時效內 (預設 24 小時內，杜絕陳舊歷史新聞)
+    3. 命中至少一個實體關鍵字 (entities)
+    4. 命中至少一個重大動作詞 (actions)
     
     回傳: (是否通過, 命中的標籤列表)
     """
+    # 0. 黑名單排除過濾
+    if is_blacklisted(article):
+        return False, []
+
     # 1. 時效性過濾
     if not is_article_fresh(article, max_age_hours=config.alert_max_age_hours):
         return False, []
