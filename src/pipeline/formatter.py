@@ -512,35 +512,77 @@ def format_insider_embed(transactions: List[Dict[str, Any]], ai_summary: str = "
         description = summary_header
 
     fields = []
-    # Discord 單張 Embed 上限 25 個欄位，取前 15 筆重點交易展示
-    for tx in transactions[:15]:
-        is_buy = tx.get("action") == "buy"
-        action_badge = "🟢 【重點買進訊號】" if is_buy else "🔴 【高管申報賣出】"
-        action_verb = "買進" if is_buy else "賣出"
-        symbol = tx.get("symbol", "")
-        company_name = tx.get("company_name", symbol)
-        insider = tx.get("insider", "未知")
-        position = tx.get("position", "內部人")
-        date_str = tx.get("date", "")
-        shares = tx.get("shares", 0)
-        value_usd = tx.get("value_usd", 0.0)
-        price_hint = tx.get("price_hint", "未揭露")
 
-        field_value = (
-            f"• **內部人**：{insider}（{position}）\n"
-            f"• **交易明細**：`{date_str}` {action_verb} **{shares:,} 股**（成交價 {price_hint}）\n"
-            f"• **成交總額**：**${value_usd:,.0f} USD**"
-        )
+    # 依企業 (symbol) 分組聚合內部人交易紀錄
+    grouped: Dict[str, Dict[str, Any]] = {}
+    for tx in transactions:
+        symbol = tx.get("symbol", "UNKNOWN")
+        if symbol not in grouped:
+            grouped[symbol] = {
+                "symbol": symbol,
+                "company_name": tx.get("company_name", symbol),
+                "txs": [],
+                "buy_total": 0.0,
+                "sell_total": 0.0,
+                "buy_cnt": 0,
+                "sell_cnt": 0,
+            }
+        grouped[symbol]["txs"].append(tx)
+        val = tx.get("value_usd", 0.0)
+        if tx.get("action") == "buy":
+            grouped[symbol]["buy_total"] += val
+            grouped[symbol]["buy_cnt"] += 1
+        else:
+            grouped[symbol]["sell_total"] += val
+            grouped[symbol]["sell_cnt"] += 1
+
+    # 排序：有買進紀錄的企業優先，其次依該企業總交易金額由大到小排序
+    sorted_companies = sorted(
+        grouped.values(),
+        key=lambda g: (0 if g["buy_cnt"] > 0 else 1, -(g["buy_total"] + g["sell_total"])),
+    )
+
+    for comp in sorted_companies[:20]:
+        symbol = comp["symbol"]
+        company_name = comp["company_name"]
+        b_cnt, s_cnt = comp["buy_cnt"], comp["sell_cnt"]
+        b_tot, s_tot = comp["buy_total"], comp["sell_total"]
+
+        if b_cnt > 0 and s_cnt > 0:
+            badge = "🟡 【買賣並存】"
+            stats = f"買進 {b_cnt} 筆 (${b_tot:,.0f})｜賣出 {s_cnt} 筆 (${s_tot:,.0f})"
+        elif b_cnt > 0:
+            badge = "🟢 【重點買進】"
+            stats = f"買進 {b_cnt} 筆｜合計 ${b_tot:,.0f} USD"
+        else:
+            badge = "🔴 【申報賣出】"
+            stats = f"賣出 {s_cnt} 筆｜合計 ${s_tot:,.0f} USD"
+
+        lines = []
+        for tx in comp["txs"]:
+            is_buy = tx.get("action") == "buy"
+            act_icon = "🟢 買進" if is_buy else "🔴 賣出"
+            insider = tx.get("insider", "未知")
+            position = tx.get("position", "內部人")
+            date_str = tx.get("date", "")
+            shares = tx.get("shares", 0)
+            value_usd = tx.get("value_usd", 0.0)
+            price_hint = tx.get("price_hint", "未揭露")
+            lines.append(
+                f"• `{date_str}` {act_icon}｜**{insider}**（{position}）\n"
+                f"  {shares:,} 股 @ {price_hint}（**${value_usd:,.0f} USD**）"
+            )
+
         fields.append({
-            "name": f"{action_badge} {symbol} {company_name}",
-            "value": field_value[:1024],
+            "name": f"{badge} {symbol} {company_name}（{stats}）",
+            "value": "\n".join(lines)[:1024],
             "inline": False,
         })
 
-    if len(transactions) > 15:
+    if len(sorted_companies) > 20:
         fields.append({
             "name": "📌 補充說明",
-            "value": f"其餘尚有 {len(transactions) - 15} 筆金額較小之申報已省略。",
+            "value": f"其餘尚有 {len(sorted_companies) - 20} 家企業之申報已省略。",
             "inline": False,
         })
 
@@ -550,7 +592,7 @@ def format_insider_embed(transactions: List[Dict[str, Any]], ai_summary: str = "
             "icon_url": "https://cdn-icons-png.flaticon.com/512/2910/2910795.png",
         },
         "title": f"【內部人動向】美股觀察名單高管大額買賣申報 — {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
-        "description": description,
+        "description": description[:4000],
         "color": embed_color,
         "fields": fields,
         "footer": {
