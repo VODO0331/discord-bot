@@ -411,6 +411,9 @@ watchlist:
     - name: "企業級 AI 軟體與數據分析"
       icon: "🔮"
       stocks:
+        - symbol: "ANT"
+          name: "Anthropic (ANT)"
+          market: "us"
         - symbol: "PLTR"
           name: "Palantir"
           market: "us"
@@ -628,6 +631,8 @@ alert_keywords:
     - "Tesla"
     - "Uber"
     - "OpenAI"
+    - "Anthropic"
+    - "Claude"
     - "聯準會"
     - "Fed"
     - "先進封裝"
