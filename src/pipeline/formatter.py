@@ -142,6 +142,24 @@ def format_morning_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[s
             is_panic = True
             panic_reasons.append(f"{idx['name']} ({sign}{pct}%)")
 
+    # 美股資金與避險情緒指標 (VIX / 美債10Y / 美元指數)
+    macro_lines = []
+    for m in market_data.get("macro_sentiment", []):
+        m_pct = m.get("change_percent", 0.0)
+        m_sign = "+" if m_pct >= 0 else ""
+        # VIX / 美債殖利率 / 美元上漲通常對科技股偏逆風，以箭頭直觀顯示
+        m_arrow = "▲" if m.get("is_up") else "▼"
+        macro_lines.append(f"{m_arrow} **{m['name']}**: `{m['price']}` ({m_sign}{m_pct}%)")
+    macro_field = (
+        {
+            "name": "🧭 美股資金流向與機構風險情緒",
+            "value": "\n".join(macro_lines),
+            "inline": False,
+        }
+        if macro_lines
+        else None
+    )
+
     # ------------------ 避難模式 (國喪日) ------------------
     if is_panic:
         fields.append({
@@ -149,6 +167,8 @@ def format_morning_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[s
             "value": "\n".join(indices_lines),
             "inline": False,
         })
+        if macro_field:
+            fields.append(macro_field)
 
         tsm = market_data.get("tsm_adr")
         if tsm and tsm.get("status") == "ok":
@@ -197,6 +217,8 @@ def format_morning_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[s
             "value": "\n".join(indices_lines),
             "inline": False,
         })
+    if macro_field:
+        fields.append(macro_field)
 
     # 2. TSM ADR 專區
     tsm = market_data.get("tsm_adr")
@@ -318,6 +340,28 @@ def format_wrap_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[str,
             is_panic = True
             panic_msg = f"單日重摔 {pct:.2f}% (達 {config.panic_tw_pct_drop:.1f}% 避難門檻)"
 
+    # 整理台股三大法人買賣超欄位 (正常模式與避難模式皆保留)
+    inst = market_data.get("institutional", {})
+    inst_field = None
+    if inst and inst.get("status") == "ok":
+        def _fmt_inst(val: float) -> str:
+            ic = "🟢" if val >= 0 else "🔴"
+            sg = "+" if val >= 0 else ""
+            return f"{ic} **{sg}{val:.2f} 億**"
+
+        inst_lines = [
+            f"• 外資及陸資：{_fmt_inst(inst['foreign'])}",
+            f"• 投信：{_fmt_inst(inst['trust'])}",
+            f"• 自營商：{_fmt_inst(inst['dealer'])}（自行 {'+' if inst['dealer_self'] >= 0 else ''}{inst['dealer_self']:.2f} / 避險 {'+' if inst['dealer_hedge'] >= 0 else ''}{inst['dealer_hedge']:.2f}）",
+            f"• **三大法人合計**：{_fmt_inst(inst['total'])}",
+        ]
+        inst_date = f" ({inst['date']})" if inst.get("date") else ""
+        inst_field = {
+            "name": f"🏦 台股三大法人買賣超動向{inst_date}",
+            "value": "\n".join(inst_lines),
+            "inline": False,
+        }
+
     # ------------------ 避難模式 (國喪日) ------------------
     if is_panic:
         fields.append({
@@ -325,6 +369,8 @@ def format_wrap_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[str,
             "value": f"📉 收盤點數: **{tw_index.get('price')}** | 跌點: **{change_point} 點** ({pct}%)",
             "inline": False,
         })
+        if inst_field:
+            fields.append(inst_field)
 
         # 幽默且莊嚴的避難指引
         fields.append({
@@ -364,6 +410,8 @@ def format_wrap_embed(market_data: Dict[str, Any], ai_summary: str) -> Dict[str,
         "value": f"{icon} 收盤點數: **{tw_index.get('price')}** | 漲跌幅: **{sign}{tw_index.get('change_percent')}%**",
         "inline": False,
     })
+    if inst_field:
+        fields.append(inst_field)
 
     # 2. 專屬獨立 ETF 監控專區 (置頂於個股族群之前，主動與被動獨立並列)
     etf_groups = market_data.get("etf_groups", [])

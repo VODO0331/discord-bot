@@ -5,6 +5,7 @@
 
 import logging
 from typing import Any, Dict, List, Optional
+import requests
 import yfinance as yf
 from src.config import config
 
@@ -128,10 +129,98 @@ def get_etf_quotes(market_filter: Optional[str] = None) -> List[Dict[str, Any]]:
     return get_sector_quotes(market_filter=market_filter, sectors_list=config.etf_sectors)
 
 
+def fetch_tw_institutional_investors() -> Dict[str, Any]:
+    """
+    從臺灣證券交易所 (TWSE) 官方 API 擷取最新交易日「三大法人買賣超金額」(單位：億元)。
+    API: https://www.twse.com.tw/rwd/zh/fund/BFI82U?response=json
+    """
+    url = "https://www.twse.com.tw/rwd/zh/fund/BFI82U?response=json"
+    try:
+        resp = requests.get(
+            url,
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        payload = resp.json()
+        if payload.get("stat") != "OK" or not payload.get("data"):
+            logger.warning(f"TWSE 三大法人回傳狀態非 OK: {payload.get('stat')}")
+            return {"status": "unavailable"}
+
+        raw_date = str(payload.get("date", ""))
+        fmt_date = (
+            f"{raw_date[:4]}-{raw_date[4:6]}-{raw_date[6:8]}"
+            if len(raw_date) == 8
+            else raw_date
+        )
+
+        def _parse_yi(val_str: str) -> float:
+            cleaned = str(val_str).replace(",", "").strip()
+            return round(float(cleaned) / 1e8, 2)
+
+        foreign = 0.0
+        trust = 0.0
+        dealer_self = 0.0
+        dealer_hedge = 0.0
+        total = 0.0
+
+        for row in payload["data"]:
+            if len(row) < 4:
+                continue
+            label = str(row[0]).strip()
+            net_yi = _parse_yi(row[3])
+            if "外資" in label:
+                foreign = round(foreign + net_yi, 2)
+            elif "投信" in label:
+                trust = round(trust + net_yi, 2)
+            elif "自營商(自行買賣)" in label:
+                dealer_self = net_yi
+            elif "自營商(避險)" in label:
+                dealer_hedge = net_yi
+            elif "合計" in label:
+                total = net_yi
+
+        dealer = round(dealer_self + dealer_hedge, 2)
+        return {
+            "status": "ok",
+            "date": fmt_date,
+            "foreign": foreign,
+            "trust": trust,
+            "dealer": dealer,
+            "dealer_self": dealer_self,
+            "dealer_hedge": dealer_hedge,
+            "total": total,
+        }
+    except Exception as e:
+        logger.warning(f"抓取 TWSE 三大法人買賣超失敗: {e}")
+        return {"status": "unavailable"}
+
+
+def fetch_us_macro_sentiment() -> List[Dict[str, Any]]:
+    """
+    擷取美股每日資金流向與機構風險情緒代表指標 (Risk-On / Risk-Off)：
+    - ^VIX: 恐慌指數 (機構避險情緒)
+    - ^TNX: 美國 10 年期公債殖利率 (資金成本與股債流向)
+    - DX-Y.NYB: 美元指數 (全球熱錢與避險流向)
+    """
+    macro_tickers = [
+        ("^VIX", "恐慌指數 (VIX)"),
+        ("^TNX", "美債10Y殖利率"),
+        ("DX-Y.NYB", "美元指數 (DXY)"),
+    ]
+    results = []
+    for sym, name in macro_tickers:
+        q = fetch_ticker_quote(sym, name)
+        if q.get("status") == "ok":
+            results.append(q)
+    return results
+
+
 def get_morning_market_data() -> Dict[str, Any]:
     """
     開盤晨報市場數據組合：
     - 美股四大核心指數 (^SOX, ^IXIC, ^GSPC, ^DJI)
+    - 美股資金與避險情緒指標 (^VIX, ^TNX, DX-Y.NYB)
     - 台積電 ADR (TSM) - 作為台股開盤重要領航
     - 美股 ETF 專屬專區 (旗艦大盤與主題公債 ETF)
     - 美股科技焦點股 (按族群分組)
@@ -141,12 +230,14 @@ def get_morning_market_data() -> Dict[str, Any]:
         quote = fetch_ticker_quote(item["symbol"], item.get("name"))
         indices_results.append(quote)
 
+    macro_sentiment = fetch_us_macro_sentiment()
     tsm_quote = fetch_ticker_quote("TSM", "台積電 ADR")
     us_sectors = get_sector_quotes(market_filter="us")
     etf_groups = get_etf_quotes(market_filter="us")
 
     return {
         "indices": indices_results,
+        "macro_sentiment": macro_sentiment,
         "tsm_adr": tsm_quote,
         "etf_groups": etf_groups,
         "sector_groups": us_sectors,
@@ -157,11 +248,13 @@ def get_wrap_market_data() -> Dict[str, Any]:
     """
     盤後綜述市場數據組合：
     - 台灣加權指數 (^TWII)
+    - 台股三大法人買賣超金額 (外資、投信、自營商、合計)
     - 台股 ETF 專屬獨立專區 (核心被動與主動管理 ETF)
     - 台股熱門個股 (按產業族群分組: 載板、PCB、CCL、AI代工、散熱等)
     - 美股代表指數作為晚間前瞻
     """
     tw_index = fetch_ticker_quote("^TWII", "加權指數")
+    institutional = fetch_tw_institutional_investors()
     tw_sectors = get_sector_quotes(market_filter="tw")
     etf_groups = get_etf_quotes(market_filter="tw")
 
@@ -171,6 +264,7 @@ def get_wrap_market_data() -> Dict[str, Any]:
 
     return {
         "tw_index": tw_index,
+        "institutional": institutional,
         "etf_groups": etf_groups,
         "sector_groups": tw_sectors,
         "us_preview": us_preview,

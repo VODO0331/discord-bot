@@ -199,6 +199,13 @@ def summarize_morning(market_data: Dict[str, Any], top_articles: List[Dict[str, 
     tsm = market_data.get("tsm_adr", {})
     tsm_line = f"台積電 ADR (TSM): {tsm.get('price')} (漲跌: {tsm.get('change_percent')}%)"
 
+    # 整理美股資金流向與避險情緒指標 (VIX, 美債10Y, 美元指數)
+    macro_lines = []
+    for m in market_data.get("macro_sentiment", []):
+        m_sign = "+" if m.get("change_percent", 0) >= 0 else ""
+        macro_lines.append(f"- {m['name']}: {m['price']} ({m_sign}{m['change_percent']}%)")
+    macro_section = "\n".join(macro_lines) if macro_lines else "（暫無即時數據）"
+
     articles_text = ""
     for idx, art in enumerate(top_articles[:3], 1):
         articles_text += f"{idx}. 【{art.get('source')}】{art.get('title')}\n"
@@ -210,15 +217,18 @@ def summarize_morning(market_data: Dict[str, Any], top_articles: List[Dict[str, 
 {chr(10).join(market_summary_lines)}
 {tsm_line}
 
+【美股資金與機構風險情緒指標】
+{macro_section}
+
 【精選產業焦點新聞】
 {articles_text}
 
 請以繁體中文撰寫，包含以下三個結構化段落（精簡俐落，採用 Markdown 條列格式）：
-1. 🌐 **隔夜美股動態與半導體表現**：總結美股指數漲跌主因與科技族群氣氛。
+1. 🌐 **隔夜美股動態與資金情緒**：總結美股指數漲跌主因，並結合 VIX 恐慌指數、美債殖利率與美元指數，判讀機構資金是風險偏好進場 (Risk-On) 還是避險撤退 (Risk-Off)。
 2. 🇹🇼 **台股開盤前瞻與重要指標**：以台積電 ADR 表現與國際半導體走勢，客觀前瞻今日台股加權指數與電子權值股開盤可能氣氛。
 3. 🔍 **今日焦點關鍵事件**：挑選 1-2 則最關鍵焦點提點。
 
-字數控制在 250~350 字之間，語氣專業客觀。
+字數控制在 250~380 字之間，語氣專業客觀。
 """
     response = call_gemini(prompt)
     if response:
@@ -245,6 +255,22 @@ def summarize_wrap(market_data: Dict[str, Any], top_articles: List[Dict[str, Any
     sign = "+" if tw_index.get("change_percent", 0) >= 0 else ""
     tw_index_line = f"加權指數收盤: {tw_index.get('price')} 點 ({sign}{tw_index.get('change_percent')}%)"
 
+    # 整理三大法人買賣超數據
+    inst = market_data.get("institutional", {})
+    if inst and inst.get("status") == "ok":
+        def _fmt_yi(v: float) -> str:
+            return f"{'+' if v >= 0 else ''}{v:.2f} 億"
+
+        inst_line = (
+            f"資料日期 ({inst.get('date', '')})｜"
+            f"外資及陸資: {_fmt_yi(inst['foreign'])}、"
+            f"投信: {_fmt_yi(inst['trust'])}、"
+            f"自營商: {_fmt_yi(inst['dealer'])} (自行 {_fmt_yi(inst['dealer_self']} / 避險 {_fmt_yi(inst['dealer_hedge'])})、"
+            f"三大法人合計: {_fmt_yi(inst['total'])}"
+        )
+    else:
+        inst_line = "（今日證交所三大法人數據尚未更新或擷取異常）"
+
     articles_text = ""
     for idx, art in enumerate(top_articles[:3], 1):
         articles_text += f"{idx}. 【{art.get('source')}】{art.get('title')}\n"
@@ -255,15 +281,18 @@ def summarize_wrap(market_data: Dict[str, Any], top_articles: List[Dict[str, Any
 【今日台股行情數據】
 {tw_index_line}
 
+【今日三大法人買賣超籌碼動向】
+{inst_line}
+
 【今日焦點動態】
 {articles_text}
 
 請以繁體中文撰寫，包含以下三個段落（精簡條列）：
-1. 📊 **台股盤後結構總結**：總結加權指數與代表權值股之強弱表現。
+1. 📊 **台股盤後結構與三大法人籌碼研判**：結合加權指數漲跌與外資、投信、自營商實際買賣超金額，明確解讀今日是「土洋對作」、「法人同步偏多」還是「主力資金調節偏空」。
 2. 💡 **族群脈絡與焦點新聞**：結合今日新聞歸納資金聚焦重點與供應鏈焦點。
 3. 🇺🇸 **今晚美股開盤前瞻**：提醒今晚美股開盤重點關注指標（如期指、財報或經濟數據）。
 
-字數控制在 250~350 字之間，客觀專業。
+字數控制在 250~380 字之間，客觀專業。
 """
     response = call_gemini(prompt)
     if response:
