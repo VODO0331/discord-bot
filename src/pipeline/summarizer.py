@@ -265,7 +265,7 @@ def summarize_wrap(market_data: Dict[str, Any], top_articles: List[Dict[str, Any
             f"資料日期 ({inst.get('date', '')})｜"
             f"外資及陸資: {_fmt_yi(inst['foreign'])}、"
             f"投信: {_fmt_yi(inst['trust'])}、"
-            f"自營商: {_fmt_yi(inst['dealer'])} (自行 {_fmt_yi(inst['dealer_self']} / 避險 {_fmt_yi(inst['dealer_hedge'])})、"
+            f"自營商: {_fmt_yi(inst['dealer'])} (自行 {_fmt_yi(inst['dealer_self'])} / 避險 {_fmt_yi(inst['dealer_hedge'])})、"
             f"三大法人合計: {_fmt_yi(inst['total'])}"
         )
     else:
